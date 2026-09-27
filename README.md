@@ -1,2 +1,2 @@
 # IFJ_prekladac_jazyka--FAVP
-Skupinový projekt z predmetu formálne jazyky a prekladače (IFJ) na VUT FIT zameraný na implementáciu prekladača imperatívneho jazyka IFJ26
+Group project for the Formal Languages and Compilers (IFJ) course at FIT BUT focused on implementing a compiler for the IFJ26 imperative language.
