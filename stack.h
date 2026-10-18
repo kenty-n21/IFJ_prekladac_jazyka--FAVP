@@ -57,7 +57,6 @@ typedef struct tstack{
 
 
 
-
 //inicializáacia zásobníka
 void init_stack(TStack *s);
 
