@@ -15,7 +15,6 @@ typedef enum {
 typedef struct {
     char meno[256];
     Datatype;
-    bool incializovane;
 } Symboldata;
 
 Symboldata *hash_table[velkost_tabulky];
@@ -37,12 +36,12 @@ void init_hash_table() {
 }
 
 bool hash_table_insert(Symboldata *s) {
-    if (p == false)
+    if (s == false)
         return false;
     int index = hash_funkcia(s->meno);
 
     if (hash_table[index] != NULL) {
-        return false
+        return false;
     }
     hash_table[index] = s;
     return true;
