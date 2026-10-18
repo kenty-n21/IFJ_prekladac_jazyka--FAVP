@@ -34,10 +34,17 @@ typedef enum{
     TYPE_UNDEFINED
 }Datatype;
 
-//štrúktúra prvku v zásobníku
-typedef struct TSElem{
+
+
+
+typedef struct TSData{
     Datatype type;
     PrecSymbol symbol;
+}TSData;
+
+//štrúktúra prvku v zásobníku
+typedef struct TSElem{
+    TSData data;
     struct TSElem *next;
 }TSElem;
 
@@ -46,11 +53,16 @@ typedef struct tstack{
     TSElem *top;
 }TStack;
 
+
+
+
+
+
 //inicializáacia zásobníka
 void init_stack(TStack *s);
 
 //alokuj miesto v pamäti pre nový element, v prípade úspešnej alokácie vlož prvok na vrch zásobníka
-bool push_stack(TStack *s, Datatype type, PrecSymbol symbol);
+bool push_stack(TStack *s, TSData data);
 
 //vlož zarážku nad najvyšší terminál
 int insert_terminal_stop_stack(TStack *s);
