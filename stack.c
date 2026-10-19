@@ -90,7 +90,7 @@ TSElem* get_topterminal_stack(TStack *s){
 TSElem* top_stack(TStack *s){
     if(is_empty_stack(s) == true){
         fprintf(stderr,"Zásobník je prázdny ! \n");
-        retunr NULL;
+        return NULL;
     }
     return (s->top);
 }

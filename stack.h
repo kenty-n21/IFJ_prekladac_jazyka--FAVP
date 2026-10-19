@@ -61,7 +61,7 @@ void init_stack(TStack *s);
 bool push_stack(TStack *s, TSData data);
 
 //vlož zarážku nad najvyšší terminál
-int insert_terminal_stop_stack(TStack *s);
+bool insert_terminal_stop_stack(TStack *s);
 
 //zruší prvok na vrchu zásobníka
 void pop_stack(TStack *s);
