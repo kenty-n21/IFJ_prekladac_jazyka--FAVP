@@ -36,7 +36,6 @@ typedef enum{
 
 
 
-
 typedef struct TSData{
     Datatype type;
     PrecSymbol symbol;
@@ -52,8 +51,6 @@ typedef struct TSElem{
 typedef struct tstack{
     TSElem *top;
 }TStack;
-
-
 
 
 

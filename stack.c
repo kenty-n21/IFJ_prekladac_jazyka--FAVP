@@ -6,12 +6,14 @@
 
  /**
   * init_stack - hotova
-  * !insert_terminal_stop_stack 
+  * insert_terminal_stop_stack - hotov
   * pop_stack - hotova
-  * !get_topterminal_stack 
+  * get_topterminal_stack - hotovo
   * top_stack - hotova
   * is_empty_stack - hotova
-  * !free_stack 
+  * free_stack - hotovo
+  * 
+  * este otestovat na testoch
   */
 #include <stdio.h>      // pre mozne chybove hlasnia
 #include <stdlib.h>     //na alokaciu
@@ -36,7 +38,33 @@ bool push_stack(TStack *s, TSData data){
 }
 
 //vlož zarážku nad najvyšší terminál
-int insert_terminal_stop_stack(TStack *s);
+bool insert_terminal_stop_stack(TStack *s){
+    TSElem* NewElemPtr = (TSElem *)malloc(sizeof(struct TSElem));
+    if (NewElemPtr == NULL)
+        return false;
+    NewElemPtr->data.symbol = SYM_STOP;
+    NewElemPtr->data.type = TYPE_UNDEFINED;
+
+    TSElem *PrevElem, *CurrElem;
+    CurrElem = s->top;
+    PrevElem = NULL;
+
+    while(CurrElem != NULL && CurrElem->data.symbol == SYM_NONTERM){
+        PrevElem = CurrElem;
+        CurrElem = CurrElem->next;
+    }
+
+    if(PrevElem == NULL){
+        s->top = NewElemPtr;
+        NewElemPtr->next = CurrElem;
+        return true;
+    }
+
+    NewElemPtr->next = CurrElem;
+    PrevElem->next = NewElemPtr;
+
+    return true;
+}
 
 //zruší prvok na vrchu zásobníka
 void pop_stack(TStack *s){
@@ -49,7 +77,14 @@ void pop_stack(TStack *s){
 }
 
 //získaj najvyššie uložený terminál
-TSElem* get_topterminal_stack(TStack *s);
+TSElem* get_topterminal_stack(TStack *s){
+    TSElem *CurrentElem;
+    CurrentElem = s->top;
+    while(CurrentElem != NULL && (CurrentElem->data.symbol == SYM_NONTERM || CurrentElem->data.symbol == SYM_STOP)){
+        CurrentElem = CurrentElem->next;
+    }
+    return CurrentElem;
+}
 
 //vráti ukazovateľ na vrchný prvok zásobníka
 TSElem* top_stack(TStack *s){
@@ -66,4 +101,8 @@ bool is_empty_stack(TStack *s){
 }
 
 //uvoľni celý zásobník
-void free_stack(TStack *s);
+void free_stack(TStack *s){
+    while(!is_empty_stack(s)){
+        pop_stack(s);
+    }
+}
