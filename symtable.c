@@ -95,12 +95,13 @@ bool hash_table_insert(Symboldata *s, symtable *t) {
     return true;
 }
 // hladanie v tabulke od indexu kde ma byt a dalej
-Symboldata *hash_table_lookup(char *s) {
-    int index = hash_funkcia(s);
-    for (int i = 0; i < velkost_tabulky; i++) {
-        int try = (i + index) % velkost_tabulky;
-        if (hash_table[try] != NULL && !(strcmp(hash_table[try]->meno, s))) {
-            return hash_table[try];
+Symboldata *hash_table_lookup(char *s, symtable *t) {
+    unsigned int hash_hodnota = hash_funkcia(s);
+    int index = hash_hodnota % t->velkost_tabulky;
+    for (int i = 0; i < t->velkost_tabulky; i++) {
+        int try = (i + index) % t->velkost_tabulky;
+        if (t->hash_table[try] != NULL && !(strcmp(t->hash_table[try]->meno, s))) {
+            return t->hash_table[try];
         }
     }
     return NULL;
