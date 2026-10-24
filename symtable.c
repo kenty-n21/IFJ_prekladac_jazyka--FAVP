@@ -23,6 +23,27 @@ typedef struct {
     int pocet_synbolov;
 } symtable;
 
+// vlozenie prvku do tabulky bud na dany index alebo na prve miesto za nim
+bool hash_table_insert(Symboldata *s, symtable *t) {
+    if (t->pocet_synbolov == t->velkost_tabulky) {
+        resize_hash_table(t);
+    }
+
+    unsigned int hash_hodnota = hash_funkcia(s->meno);
+    int index = hash_hodnota % t->velkost_tabulky;
+    for (int i = 0; i < t->velkost_tabulky; i++) {
+        int try = (i + index) % t->velkost_tabulky;
+        if (t->hash_table[try] == NULL) {
+            t->hash_table[try] = s;
+            t->pocet_synbolov = t->pocet_synbolov + 1;
+            return true;
+        }
+        if (strcmp(t->hash_table[try]->meno, s->meno) == 0) {
+            return true;
+        }
+    }
+    return true;
+}
 // vyhlada index kde ma byt ulozena dana hodnota
 symtable *resize_hash_table(symtable *ptr) {
     if (ptr == NULL) {
@@ -73,27 +94,7 @@ symtable *init_hash_table() {
     }
     return t;
 }
-// vlozenie prvku do tabulky bud na dany index alebo na prve miesto za nim
-bool hash_table_insert(Symboldata *s, symtable *t) {
-    if (t->pocet_synbolov == t->velkost_tabulky) {
-        resize_hash_table(t);
-    }
 
-    unsigned int hash_hodnota = hash_funkcia(s->meno);
-    int index = hash_hodnota % t->velkost_tabulky;
-    for (int i = 0; i < t->velkost_tabulky; i++) {
-        int try = (i + index) % t->velkost_tabulky;
-        if (t->hash_table[try] == NULL) {
-            t->hash_table[try] = s;
-            t->pocet_synbolov = t->pocet_synbolov + 1;
-            return true;
-        }
-        if (strcmp(t->hash_table[try]->meno, s->meno) == 0) {
-            return true;
-        }
-    }
-    return true;
-}
 // hladanie v tabulke od indexu kde ma byt a dalej
 Symboldata *hash_table_lookup(char *s, symtable *t) {
     unsigned int hash_hodnota = hash_funkcia(s);
