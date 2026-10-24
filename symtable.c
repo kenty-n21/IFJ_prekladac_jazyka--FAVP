@@ -112,12 +112,12 @@ Symboldata *hash_table_lookup(char *s, symtable *t) {
 // zmazanie daneho synbolu bud na indexe alebo dalej
 Symboldata *hash_table_delete(char *s, symtable *t) {
     if (s == NULL)
-        return false;
+        return NULL;
     unsigned int hash_hodnota = hash_funkcia(s);
     int index = hash_hodnota % t->velkost_tabulky;
     for (int i = 0; i < t->velkost_tabulky; i++) {
         int try = (i + index) % t->velkost_tabulky;
-        if (!(strcmp(t->hash_table[try]->meno, s)) && t->hash_table[try] != NULL) {
+        if (t->hash_table[try] != NULL && !(strcmp(t->hash_table[try]->meno, s))) {
             Symboldata *tmp = t->hash_table[try];
             t->hash_table[try] = NULL;
             t->pocet_synbolov = t->pocet_synbolov - 1;
