@@ -28,12 +28,27 @@ symtable *resize_hash_table(symtable *ptr) {
     if (ptr == NULL) {
         return NULL;
     }
-    symtable *newptr;
-    newptr = realloc(ptr, sizeof(symtable) * 2);
-    hash_table_insert(newptr);
-    free(ptr);
+    int nova_velkost = ptr->velkost_tabulky * 2;
+    int stara_velkost = ptr->velkost_tabulky;
+    Symboldata **newptr;
+    Symboldata **stare_pole = ptr->hash_table;
+    newptr = malloc(sizeof(Symboldata *) * nova_velkost);
+    if (newptr == NULL) {
+        return NULL;
+    }
+    ptr->hash_table = newptr;
+    for (int l = 0; l < nova_velkost; l++) {
+        newptr[l] = NULL;
+    }
+    ptr->pocet_synbolov = 0;
+    ptr->velkost_tabulky = nova_velkost;
+    for (int i = 0; i < stara_velkost; i++) {
+        if (stare_pole[i] != NULL)
+            hash_table_insert(stare_pole[i], ptr);
+    }
 
-    return newptr;
+    free(stare_pole);
+    return ptr;
 }
 int hash_funkcia(char *meno) {
     int dlzka = strlen(meno);
