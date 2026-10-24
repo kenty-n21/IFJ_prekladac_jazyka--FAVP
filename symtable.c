@@ -70,6 +70,9 @@ symtable *init_hash_table() {
     t->velkost_tabulky = 10;
     t->pocet_synbolov = 0;
     t->hash_table = malloc(sizeof(Symboldata *) * t->velkost_tabulky);
+    if (t->hash_table == NULL) {
+        return NULL;
+    }
     for (int i = 0; i < t->velkost_tabulky; i++) {
         t->hash_table[i] = NULL;
     }
@@ -77,6 +80,9 @@ symtable *init_hash_table() {
 }
 // vlozenie prvku do tabulky bud na dany index alebo na prve miesto za nim
 bool hash_table_insert(Symboldata *s, symtable *t) {
+    if (s == NULL || t == NULL) {
+        return NULL;
+    }
     if (t->pocet_synbolov == t->velkost_tabulky) {
         resize_hash_table(t);
     }
@@ -94,11 +100,14 @@ bool hash_table_insert(Symboldata *s, symtable *t) {
             return true;
         }
     }
-    return true;
+    return false;
 }
 
 // hladanie v tabulke od indexu kde ma byt a dalej
 Symboldata *hash_table_lookup(char *s, symtable *t) {
+    if (s == NULL || t == NULL) {
+        return NULL;
+    }
     unsigned int hash_hodnota = hash_funkcia(s);
     int index = hash_hodnota % t->velkost_tabulky;
     for (int i = 0; i < t->velkost_tabulky; i++) {
@@ -111,7 +120,7 @@ Symboldata *hash_table_lookup(char *s, symtable *t) {
 }
 // zmazanie daneho synbolu bud na indexe alebo dalej
 Symboldata *hash_table_delete(char *s, symtable *t) {
-    if (s == NULL)
+    if (s == NULL || t == NULL)
         return NULL;
     unsigned int hash_hodnota = hash_funkcia(s);
     int index = hash_hodnota % t->velkost_tabulky;
