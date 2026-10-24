@@ -65,12 +65,13 @@ symtable *init_hash_table() {
     symtable *t;
     t = malloc(sizeof(symtable));
     if (t == NULL) {
-        return NULL;
+        return false;
     }
     t->velkost_tabulky = 10;
     t->pocet_synbolov = 0;
     t->hash_table = malloc(sizeof(Symboldata *) * t->velkost_tabulky);
     if (t->hash_table == NULL) {
+        free(t);
         return NULL;
     }
     for (int i = 0; i < t->velkost_tabulky; i++) {
@@ -84,7 +85,9 @@ bool hash_table_insert(Symboldata *s, symtable *t) {
         return NULL;
     }
     if (t->pocet_synbolov == t->velkost_tabulky) {
-        resize_hash_table(t);
+        if (resize_hash_table(t) == NULL) {
+            return false;
+        }
     }
 
     unsigned int hash_hodnota = hash_funkcia(s->meno);
