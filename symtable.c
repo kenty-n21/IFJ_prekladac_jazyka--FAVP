@@ -50,13 +50,12 @@ symtable *resize_hash_table(symtable *ptr) {
     free(stare_pole);
     return ptr;
 }
-int hash_funkcia(char *meno) {
+unsigned int hash_funkcia(char *meno) {
     int dlzka = strlen(meno);
-    int hash_hodnota = 0;
+    unsigned int hash_hodnota = 0;
     for (int i = 0; i < dlzka; i++) {
-        hash_hodnota += hash_hodnota * 37 + symtable->hash_table->meno[i];
+        hash_hodnota = hash_hodnota * 37 + meno[i];
     }
-    hash_hodnota = hash_hodnota % velkost_tabulky;
     return hash_hodnota;
 }
 // inicializuje tabulku
@@ -80,13 +79,16 @@ bool hash_table_insert(Symboldata *s, symtable *t) {
         resize_hash_table(t);
     }
 
-    int index = hash_funkcia(s->meno);
-
+    unsigned int hash_hodnota = hash_funkcia(s->meno);
+    int index = hash_hodnota % t->velkost_tabulky;
     for (int i = 0; i < t->velkost_tabulky; i++) {
         int try = (i + index) % t->velkost_tabulky;
         if (t->hash_table[try] == NULL) {
             t->hash_table[try] = s;
             t->pocet_synbolov = t->pocet_synbolov + 1;
+            return true;
+        }
+        if (strcmp(t->hash_table[try]->meno, s->meno) == 0) {
             return true;
         }
     }
