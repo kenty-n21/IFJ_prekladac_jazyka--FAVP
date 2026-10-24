@@ -65,7 +65,7 @@ symtable *init_hash_table() {
     symtable *t;
     t = malloc(sizeof(symtable));
     if (t == NULL) {
-        return false;
+        return NULL;
     }
     t->velkost_tabulky = 10;
     t->pocet_synbolov = 0;
@@ -82,7 +82,7 @@ symtable *init_hash_table() {
 // vlozenie prvku do tabulky bud na dany index alebo na prve miesto za nim
 bool hash_table_insert(Symboldata *s, symtable *t) {
     if (s == NULL || t == NULL) {
-        return NULL;
+        return false;
     }
     if (t->pocet_synbolov == t->velkost_tabulky) {
         if (resize_hash_table(t) == NULL) {
