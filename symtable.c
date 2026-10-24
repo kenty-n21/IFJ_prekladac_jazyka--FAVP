@@ -11,40 +11,71 @@ typedef enum {
     type_bool,
 } Datatype;
 
-#define velkost_tabulky 10
 typedef struct {
-    char meno[256];
+    char *meno;
     Datatype typ;
+
 } Symboldata;
 
-Symboldata *hash_table[velkost_tabulky];
+typedef struct {
+    Symboldata **hash_table;
+    int velkost_tabulky;
+    int pocet_synbolov;
+} symtable;
+
 // vyhlada index kde ma byt ulozena dana hodnota
+symtable *resize_hash_table(symtable *ptr) {
+    if (ptr == NULL) {
+        return NULL;
+    }
+    symtable *newptr;
+    newptr = realloc(ptr, sizeof(symtable) * 2);
+    hash_table_insert(newptr);
+    free(ptr);
+
+    return newptr;
+}
 int hash_funkcia(char *meno) {
     int dlzka = strlen(meno);
     int hash_hodnota = 0;
     for (int i = 0; i < dlzka; i++) {
-        hash_hodnota += meno[i];
-        hash_hodnota = hash_hodnota % velkost_tabulky;
+        hash_hodnota += hash_hodnota * 37 + symtable->hash_table->meno[i];
     }
+    hash_hodnota = hash_hodnota % velkost_tabulky;
     return hash_hodnota;
 }
 // inicializuje tabulku
-void init_hash_table() {
-    for (int i = 0; i < velkost_tabulky; i++) {
-        hash_table[i] = NULL;
+symtable *init_hash_table() {
+    symtable *t;
+    t = malloc(sizeof(symtable));
+    if (t == NULL) {
+        return NULL;
     }
+    t->velkost_tabulky = 10;
+    t->pocet_synbolov = 0;
+    t->hash_table = malloc(sizeof(Symboldata *) * t->velkost_tabulky);
+    for (int i = 0; i < t->velkost_tabulky; i++) {
+        t->hash_table[i] = NULL;
+    }
+    return t;
 }
 // vlozenie prvku do tabulky bud na dany index alebo na prve miesto za nim
-bool hash_table_insert(Symboldata *s) {
+bool hash_table_insert(Symboldata *s, symtable *t) {
+    if (t->pocet_synbolov == t->velkost_tabulky) {
+        resize_hash_table(t);
+    }
+
     int index = hash_funkcia(s->meno);
-    for (int i = 0; i < velkost_tabulky; i++) {
-        int try = (i + index) % velkost_tabulky;
-        if (hash_table[try] == NULL) {
-            hash_table[try] = s;
+
+    for (int i = 0; i < t->velkost_tabulky; i++) {
+        int try = (i + index) % t->velkost_tabulky;
+        if (t->hash_table[try] == NULL) {
+            t->hash_table[try] = s;
+            t->pocet_synbolov = t->pocet_synbolov + 1;
             return true;
         }
     }
-    return false;
+    return true;
 }
 // hladanie v tabulke od indexu kde ma byt a dalej
 Symboldata *hash_table_lookup(char *s) {
