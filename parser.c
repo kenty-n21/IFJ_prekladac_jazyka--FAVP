@@ -5,7 +5,9 @@
 
 static Token current_token; 
 
-static void get_next_token(void){
+static void fetch_token(void){
+
+    current_token = get_next_token();
 
 }
 
@@ -23,13 +25,27 @@ static void parser_statements(void);
 
 int parser_program(void){
 
-    get_next_token();
+
+    
+    fetch_token();
     parser_statements();
     return 0;
 }
 
 
 static void parser_stratements(void){
+
+    while (current_token.type != TOKEN_EOF)
+    {
+
+
+
+
+
+
+        fetch_token();
+    }
+    
     
 }
 
