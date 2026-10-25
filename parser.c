@@ -5,6 +5,13 @@
 
 //aktualny token an ktorom sa parser nachadza
 static Token current_token; 
+static void fetch_token(void);
+static void expect(TokenType expect_type);
+static void parser_statements(void);
+static void parser_assignment(void);
+static void parse_expression(void);
+
+
 
 //nacita dalsi token zo scanner
 static void fetch_token(void){  
@@ -13,20 +20,6 @@ static void fetch_token(void){
 
 }
 
-
-//type control pre tokeny
-//posunie token dalej alebo vyhodi syntax error
-static void expect(expected_type){  
-    if (current_token.type == expected_type){
-        fetch_token();
-    }
-    else{
-        fprintf(stderr, "Synatx errror! Unexpected token!\n");
-        exit(2);
-    }
-}
-
-
 static void syntax_error(void){
     fprintf(stderr, "Syntax errror in code\n");
     
@@ -34,8 +27,63 @@ static void syntax_error(void){
 }
 
 
-static void parser_statements(void);
+//type control pre tokeny
+//posunie token dalej alebo vyhodi syntax error
+static void expect(TokenType expected_type){  
+    if (current_token.type == expected_type){
+        fetch_token();
+    }
+    else{
+        syntax_error();
+    }
+}
 
+
+static void parse_expression(void){
+    //kontrola ci je platny zaciatok vyrazu
+    if (current_token.type == TOKEN_IDENTIFIER || current_token.type == TOKEN_INTEGER || current_token.type == TOKEN_DOUBLE || current_token.type == TOKEN_STRING){
+
+        fetch_token();
+
+    }
+    else {
+        fprintf(stderr, "error with syntax in expression! ");
+        exit(2);
+    }
+}
+
+//kotrola pre prikaz: priradenie hodnoty do premennej (zodpoveda kod pravidlam IFJ26?)
+static void parser_assignment(void){
+
+    expect(TOKEN_IDENTIFIER);   //token = platny nazov premennej?
+
+    expect(TOKEN_ASSIGN);       //nasleduje operator priradenia?
+
+    parse_expression();
+
+    expect(TOKEN_EOL);        //kocni prikaz podkociarkou?
+}
+
+
+
+static void parser_statements(void){
+
+    while (current_token.type != TOKEN_EOF)
+    {
+        switch (current_token.type)
+        {
+        case TOKEN_IDENTIFIER:
+            parser_assignment();
+            break;
+
+
+        
+        default:
+            fetch_token();
+            break;
+        }
+    }
+}
 
 
 int parser_program(void){
@@ -46,38 +94,17 @@ int parser_program(void){
 }
 
 
-static void parser_statements(void){
-
-    while (current_token.type != TOKEN_EOF)
-    {
-        switch (current_token.type)
-        {
-        case TOKEN_IDENTIFIER:
-            /**/
-            break;
 
 
-        
-        default:
-            fetch_token();
-        }
 
-    }
-    
-    
-}
 
-//kotrola pre prikaz: priradenie hodnoty do premennej (zodpoveda kod pravidlam IFJ26?)
-static void parse_assignment(void){
 
-    expect(TOKEN_IDENTIFIER);   //token = platny nazov premennej?
 
-    expect(TOKEN_ASSIGN);       //nasleduje operator priradenia?
 
-    /*parse_expression */
 
-    expect(TOKEN_COLON);        //kocni prikaz podkociarkou?
-}
+
+
+
 
 
 
