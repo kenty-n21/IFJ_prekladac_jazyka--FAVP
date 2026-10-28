@@ -143,7 +143,18 @@ Symboldata *hash_table_delete(char *s, symtable *t) {
     }
     return NULL;
 }
-// opravit delete, ist po NULL alebo kym to najdes a vsetko posunut o ten jeden vyssie
+void delete_hash_tabulka(symtable *t) {
+
+    for (int i = 0; i < t->velkost_tabulky; i++) {
+        if (t->hash_table[i] != NULL && t->hash_table[i] != delete_item) {
+            free(t->hash_table[i]->meno); // nicis meno
+            free(t->hash_table[i]);       // nisic strukturu datatyp
+        }
+    }
+    free(t->hash_table); // nicis hastable
+    free(t);             // nicis ukazovatel ndo pamate na tuto tabulku
+}
+// opravit delete, ist po NULL alebo kym to najdes a vsetko posunut o ten jeden vyssie hotovo
 // zmazat v insert ze nemoze byt ta dana funkcia 2x hotovo
 // specifikacie ifj - 4 odkaz dorob
 // sprav uvolennie celej tabulky
