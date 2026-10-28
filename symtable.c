@@ -22,6 +22,8 @@ typedef struct {
     int velkost_tabulky;
     int pocet_synbolov;
 } symtable;
+
+#define delete_item ((Symboldata *)-1) // povie ze je to adresa, reprezentovana -1
 // musis deklarovat dopredu ze dana funkcia existuje lebo ak nie tak mas chybu + warning + note a nemozes skpirovat funkciu
 // ako taku pretoze ta zas obsahuje ine funkcie a inak to nefunguje
 bool hash_table_insert(Symboldata *s, symtable *t);
@@ -45,7 +47,7 @@ symtable *resize_hash_table(symtable *ptr) {
     ptr->pocet_synbolov = 0;
     ptr->velkost_tabulky = nova_velkost;
     for (int i = 0; i < stara_velkost; i++) {
-        if (stare_pole[i] != NULL)
+        if (stare_pole[i] != NULL && stare_pole[i] != delete_item)
             hash_table_insert(stare_pole[i], ptr);
     }
 
@@ -94,12 +96,9 @@ bool hash_table_insert(Symboldata *s, symtable *t) {
     int index = hash_hodnota % t->velkost_tabulky;
     for (int i = 0; i < t->velkost_tabulky; i++) {
         int try = (i + index) % t->velkost_tabulky;
-        if (t->hash_table[try] == NULL) {
+        if (t->hash_table[try] == NULL || t->hash_table[try] == delete_item) {
             t->hash_table[try] = s;
             t->pocet_synbolov = t->pocet_synbolov + 1;
-            return true;
-        }
-        if (strcmp(t->hash_table[try]->meno, s->meno) == 0) {
             return true;
         }
     }
@@ -115,7 +114,10 @@ Symboldata *hash_table_lookup(char *s, symtable *t) {
     int index = hash_hodnota % t->velkost_tabulky;
     for (int i = 0; i < t->velkost_tabulky; i++) {
         int try = (i + index) % t->velkost_tabulky;
-        if (t->hash_table[try] != NULL && !(strcmp(t->hash_table[try]->meno, s))) {
+        if (t->hash_table[try] == NULL) {
+            return NULL;
+        }
+        if (t->hash_table[try] != delete_item && t->hash_table[try] != NULL && !(strcmp(t->hash_table[try]->meno, s))) {
             return t->hash_table[try];
         }
     }
@@ -129,12 +131,19 @@ Symboldata *hash_table_delete(char *s, symtable *t) {
     int index = hash_hodnota % t->velkost_tabulky;
     for (int i = 0; i < t->velkost_tabulky; i++) {
         int try = (i + index) % t->velkost_tabulky;
+        if (t->hash_table[try] == NULL) {
+            return NULL;
+        }
         if (t->hash_table[try] != NULL && !(strcmp(t->hash_table[try]->meno, s))) {
             Symboldata *tmp = t->hash_table[try];
-            t->hash_table[try] = NULL;
+            t->hash_table[try] = delete_item;
             t->pocet_synbolov = t->pocet_synbolov - 1;
             return tmp;
         }
     }
     return NULL;
 }
+// opravit delete, ist po NULL alebo kym to najdes a vsetko posunut o ten jeden vyssie
+// zmazat v insert ze nemoze byt ta dana funkcia 2x hotovo
+// specifikacie ifj - 4 odkaz dorob
+// sprav uvolennie celej tabulky
