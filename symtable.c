@@ -9,11 +9,17 @@ typedef enum {
     type_float,
     type_string,
     type_bool,
+    type_void,
 } Datatype;
-
+typedef struct symtable symtable; // to na to aby kompilator vedel ze tato struktura exituje(bez toho to nejde)
 typedef struct {
     char *meno;
     Datatype typ;
+    bool is_function; // nastavuje parser aby tabulka vedela ci ide o fukciu alebo o premennu
+    int param_count;
+    Datatype *param_type;
+    symtable *local_table;
+    bool define;
 
 } Symboldata;
 
@@ -104,6 +110,22 @@ bool hash_table_insert(Symboldata *s, symtable *t) {
     }
     return false;
 }
+bool insert_var(symtable *t, char *meno, Datatype typ) {
+    Symboldata *s = malloc(sizeof(Symboldata));
+    if (s == NULL) {
+        return false;
+    }
+    s->meno = meno;
+    s->typ = typ;
+    s->is_function = false;
+    s->param_count = 0;
+    s->local_table = NULL;
+    s->param_type = NULL;
+    if (hash_table_insert(s, t);) {
+        return true;
+    }
+    return false;
+}
 
 // hladanie v tabulke od indexu kde ma byt a dalej
 Symboldata *hash_table_lookup(char *s, symtable *t) {
@@ -157,4 +179,4 @@ void delete_hash_tabulka(symtable *t) {
 // opravit delete, ist po NULL alebo kym to najdes a vsetko posunut o ten jeden vyssie hotovo
 // zmazat v insert ze nemoze byt ta dana funkcia 2x hotovo
 // specifikacie ifj - 4 odkaz dorob
-// sprav uvolennie celej tabulky
+// sprav uvolennie celej tabulky hotovo
