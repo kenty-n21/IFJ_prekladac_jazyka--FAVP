@@ -110,6 +110,8 @@ bool hash_table_insert(Symboldata *s, symtable *t) {
     }
     return false;
 }
+
+// vlozenie pramennej do tabulky
 bool insert_var(symtable *t, char *meno, Datatype typ) {
     Symboldata *s = malloc(sizeof(Symboldata));
     if (s == NULL) {
@@ -121,9 +123,31 @@ bool insert_var(symtable *t, char *meno, Datatype typ) {
     s->param_count = 0;
     s->local_table = NULL;
     s->param_type = NULL;
-    if (hash_table_insert(s, t);) {
+    if (hash_table_insert(s, t)) {
         return true;
     }
+    return false;
+}
+bool insert_func(symtable *t, char *meno, Datatype return_typ, int param_count, Datatype *param_type) {
+    Symboldata *s = malloc(sizeof(Symboldata));
+    if (s == NULL) {
+        return false;
+    }
+    s->meno = meno;
+    s->typ = return_typ;
+    s->is_function = true;
+    s->param_count = param_count;
+    s->local_table = init_hash_table();
+    if (s->local_table == NULL) {
+        free(s);
+        return false;
+    }
+    s->param_type = param_type;
+    if (hash_table_insert(s, t)) {
+        return true;
+    }
+    delete_hash_tabulka(s->local_table);
+    free(s);
     return false;
 }
 
