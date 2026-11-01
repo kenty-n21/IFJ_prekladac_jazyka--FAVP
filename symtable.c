@@ -11,16 +11,17 @@ typedef enum {
     type_bool,
     type_void,
 } Datatype;
-typedef struct symtable symtable; // to na to aby kompilator vedel ze tato struktura exituje(bez toho to nejde)
+
+typedef struct symtable symtable;
+
 typedef struct {
     char *meno;
     Datatype typ;
-    bool is_function; // nastavuje parser aby tabulka vedela ci ide o fukciu alebo o premennu
+    bool is_function;
     int param_count;
     Datatype *param_type;
     symtable *local_table;
     bool define;
-
 } Symboldata;
 
 typedef struct symtable {
@@ -29,49 +30,53 @@ typedef struct symtable {
     int pocet_synbolov;
 } symtable;
 
-#define delete_item ((Symboldata *)-1) // povie ze je to adresa, reprezentovana -1
-// musis deklarovat dopredu ze dana funkcia existuje lebo ak nie tak mas chybu + warning + note a nemozes skpirovat funkciu
-// ako taku pretoze ta zas obsahuje ine funkcie a inak to nefunguje
+#define delete_item ((Symboldata *)-1)
+
 bool hash_table_insert(Symboldata *s, symtable *t);
-// vyhlada index kde ma byt ulozena dana hodnota
+void delete_hash_tabulka(symtable *t);
+
 symtable *resize_hash_table(symtable *ptr) {
     if (ptr == NULL) {
         return NULL;
     }
     int nova_velkost = ptr->velkost_tabulky * 2;
     int stara_velkost = ptr->velkost_tabulky;
-    Symboldata **newptr;
-    Symboldata **stare_pole = ptr->hash_table;
-    newptr = malloc(sizeof(Symboldata *) * nova_velkost);
+    Symboldata **newptr = malloc(sizeof(Symboldata *) * nova_velkost);
     if (newptr == NULL) {
         return NULL;
     }
-    ptr->hash_table = newptr;
     for (int l = 0; l < nova_velkost; l++) {
         newptr[l] = NULL;
     }
+
+    Symboldata **stare_pole = ptr->hash_table;
+    ptr->hash_table = newptr;
     ptr->pocet_synbolov = 0;
     ptr->velkost_tabulky = nova_velkost;
+
     for (int i = 0; i < stara_velkost; i++) {
-        if (stare_pole[i] != NULL && stare_pole[i] != delete_item)
+        if (stare_pole[i] != NULL && stare_pole[i] != delete_item) {
             hash_table_insert(stare_pole[i], ptr);
+        }
     }
 
     free(stare_pole);
     return ptr;
 }
+
 unsigned int hash_funkcia(char *meno) {
+    if (meno == NULL)
+        return 0;
     int dlzka = strlen(meno);
     unsigned int hash_hodnota = 0;
     for (int i = 0; i < dlzka; i++) {
-        hash_hodnota = hash_hodnota * 37 + meno[i];
+        hash_hodnota = hash_hodnota * 37 + (unsigned char)meno[i];
     }
     return hash_hodnota;
 }
-// inicializuje tabulku
+
 symtable *init_hash_table() {
-    symtable *t;
-    t = malloc(sizeof(symtable));
+    symtable *t = malloc(sizeof(symtable));
     if (t == NULL) {
         return NULL;
     }
@@ -87,9 +92,9 @@ symtable *init_hash_table() {
     }
     return t;
 }
-// vlozenie prvku do tabulky bud na dany index alebo na prve miesto za nim
+
 bool hash_table_insert(Symboldata *s, symtable *t) {
-    if (s == NULL || t == NULL) {
+    if (s == NULL || t == NULL || s->meno == NULL) {
         return false;
     }
     if (t->pocet_synbolov == t->velkost_tabulky) {
@@ -103,16 +108,35 @@ bool hash_table_insert(Symboldata *s, symtable *t) {
         int try = (i + index) % t->velkost_tabulky;
         if (t->hash_table[try] == NULL || t->hash_table[try] == delete_item) {
             t->hash_table[try] = s;
-            t->pocet_synbolov = t->pocet_synbolov + 1;
+            t->pocet_synbolov++;
             return true;
         }
     }
     return false;
 }
 
-char *make_compose_key(int scope_level, char *meno) {
+Symboldata *hash_table_lookup(char *s, symtable *t) {
+    if (s == NULL || t == NULL) {
+        return NULL;
+    }
+    unsigned int hash_hodnota = hash_funkcia(s);
+    int index = hash_hodnota % t->velkost_tabulky;
+    for (int i = 0; i < t->velkost_tabulky; i++) {
+        int try = (i + index) % t->velkost_tabulky;
+        if (t->hash_table[try] == NULL) {
+            return NULL;
+        }
+        if (t->hash_table[try] != delete_item && strcmp(t->hash_table[try]->meno, s) == 0) {
+            return t->hash_table[try];
+        }
+    }
+    return NULL;
+}
 
-    int len = snprintf(NULL, 0, "%d$%s", scope_level, meno); // funkcia ktora pise do pamati na nejake dane miesto( ak je tam null nezapise nikam)
+char *make_compose_key(int scope_level, char *meno) {
+    if (meno == NULL)
+        return NULL;
+    int len = snprintf(NULL, 0, "%d$%s", scope_level, meno);
     char *key = malloc(len + 1);
     if (key == NULL) {
         return NULL;
@@ -121,12 +145,12 @@ char *make_compose_key(int scope_level, char *meno) {
     return key;
 }
 
-// vlozenie pramennej do tabulky
 bool insert_var(symtable *t, char *meno, Datatype typ, int scope_level) {
-
+    if (t == NULL || meno == NULL) {
+        return false;
+    }
     char *kluc = make_compose_key(scope_level, meno);
     if (kluc == NULL) {
-        free(kluc);
         return false;
     }
     if (hash_table_lookup(kluc, t) != NULL) {
@@ -144,6 +168,8 @@ bool insert_var(symtable *t, char *meno, Datatype typ, int scope_level) {
     s->param_count = 0;
     s->local_table = NULL;
     s->param_type = NULL;
+    s->define = true;
+
     if (hash_table_insert(s, t)) {
         return true;
     }
@@ -151,34 +177,50 @@ bool insert_var(symtable *t, char *meno, Datatype typ, int scope_level) {
     free(s);
     return false;
 }
+
 bool insert_func(symtable *t, char *meno, Datatype return_typ, int param_count, Datatype *param_type) {
+    if (t == NULL || meno == NULL) {
+        return false;
+    }
+    if (hash_table_lookup(meno, t) != NULL) {
+        return false;
+    }
+
     Symboldata *s = malloc(sizeof(Symboldata));
     if (s == NULL) {
         return false;
     }
-    s->meno = meno;
+
+    s->meno = malloc(strlen(meno) + 1);
+    if (s->meno == NULL) {
+        free(s);
+        return false;
+    }
+    strcpy(s->meno, meno);
     s->typ = return_typ;
     s->is_function = true;
     s->param_count = param_count;
     s->local_table = init_hash_table();
     if (s->local_table == NULL) {
+        free(s->meno);
         free(s);
         return false;
     }
     s->param_type = param_type;
+    s->define = true;
+
     if (hash_table_insert(s, t)) {
         return true;
     }
+
     delete_hash_tabulka(s->local_table);
+    free(s->meno);
     free(s);
     return false;
 }
-// hladanie kluca vnorenych funkciach
+
 Symboldata *lookup_var(int scope_level, char *meno, symtable *t) {
-    if (t == NULL) {
-        return NULL;
-    }
-    if (meno == NULL) {
+    if (t == NULL || meno == NULL) {
         return NULL;
     }
     for (int i = scope_level; i >= 0; i--) {
@@ -195,44 +237,29 @@ Symboldata *lookup_var(int scope_level, char *meno, symtable *t) {
     return NULL;
 }
 
-// hladanie v tabulke od indexu kde ma byt a dalej
-Symboldata *hash_table_lookup(char *s, symtable *t) {
-    if (s == NULL || t == NULL) {
-        return NULL;
-    }
-    unsigned int hash_hodnota = hash_funkcia(s);
-    int index = hash_hodnota % t->velkost_tabulky;
-    for (int i = 0; i < t->velkost_tabulky; i++) {
-        int try = (i + index) % t->velkost_tabulky;
-        if (t->hash_table[try] == NULL) {
-            return NULL;
-        }
-        if (t->hash_table[try] != delete_item && t->hash_table[try] != NULL && !(strcmp(t->hash_table[try]->meno, s))) {
-            return t->hash_table[try];
-        }
-    }
-    return NULL;
-}
-
 void exit_scope(int scope_level, symtable *t) {
     if (t == NULL) {
         return;
     }
     for (int i = 0; i < t->velkost_tabulky; i++) {
-        if (t->hash_table[i] == NULL || t->hash_table[i] == delete_item) {
+        if (t->hash_table[i] == NULL || t->hash_table[i] == delete_item || t->hash_table[i]->is_function) {
             continue;
         }
-        int level_zanorenia = atoi(t->hash_table[i]->meno);
-        if (level_zanorenia == scope_level) {
-            free(t->hash_table[i]->meno);
-            free(t->hash_hodnota[i]);
-            t->hash_table[i] = delete_item;
-            t->pocet_synbolov--;
+
+        // Bezpečná kontrola: kľúč musí obsahovať znak '$'
+        char *dollar = strchr(t->hash_table[i]->meno, '$');
+        if (dollar != NULL) {
+            int level_zanorenia = atoi(t->hash_table[i]->meno);
+            if (level_zanorenia == scope_level) {
+                free(t->hash_table[i]->meno);
+                free(t->hash_table[i]);
+                t->hash_table[i] = delete_item;
+                t->pocet_synbolov--;
+            }
         }
     }
 }
 
-// zmazanie daneho synbolu bud na indexe alebo dalej
 Symboldata *hash_table_delete(char *s, symtable *t) {
     if (s == NULL || t == NULL)
         return NULL;
@@ -243,30 +270,30 @@ Symboldata *hash_table_delete(char *s, symtable *t) {
         if (t->hash_table[try] == NULL) {
             return NULL;
         }
-        if (t->hash_table[try] != NULL && !(strcmp(t->hash_table[try]->meno, s))) {
+        if (t->hash_table[try] != delete_item && strcmp(t->hash_table[try]->meno, s) == 0) {
             Symboldata *tmp = t->hash_table[try];
             t->hash_table[try] = delete_item;
-            t->pocet_synbolov = t->pocet_synbolov - 1;
+            t->pocet_synbolov--;
             return tmp;
         }
     }
     return NULL;
 }
 
-// zmaze celu tabulku
 void delete_hash_tabulka(symtable *t) {
+    if (t == NULL) {
+        return;
+    }
 
     for (int i = 0; i < t->velkost_tabulky; i++) {
         if (t->hash_table[i] != NULL && t->hash_table[i] != delete_item) {
-            free(t->hash_table[i]->meno); // nicis meno
-            free(t->hash_table[i]);       // nisic strukturu datatyp
+            if (t->hash_table[i]->is_function && t->hash_table[i]->local_table != NULL) {
+                delete_hash_tabulka(t->hash_table[i]->local_table);
+            }
+            free(t->hash_table[i]->meno);
+            free(t->hash_table[i]);
         }
     }
-    free(t->hash_table); // nicis hastable
-    free(t);             // nicis ukazovatel ndo pamate na tuto tabulku
+    free(t->hash_table);
+    free(t);
 }
-// zmazat v insert ze nemoze byt ta dana funkcia 2x hotovo //porozmyslat nad tym
-// specifikacie ifj - 4 odkaz dorob
-// oprav uvolennie celej tabulky
-// lookup pozri ci je spravne
-// ked mas viac premennych s tym istym nazvom premennej 1 bud stac, 2 velka tabulka s inicializovanim
