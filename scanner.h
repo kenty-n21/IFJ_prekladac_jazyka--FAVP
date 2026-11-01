@@ -1,55 +1,112 @@
 /*
- * Autor: Andrej Beleš(xbelesa00)
- * VYGENERUJ MI: Kompletny hlavickovy subor scanner.h pre IFJ26.
- * Doplnene o tokeny pre @main. 
+ * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
+ * Subor: scanner.h
+ * Autor: Andrej Beles (xbelesa00)
+ *
+ * AI Prompt: "VYGENERUJ MI: Kompletny hlavickovy subor scanner.h pre jazyk
+ * IFJ26 vratane vsetkych klucovych slov, operatorov a podpory pre odsadenie."
  */
 
 #ifndef SCANNER_H
 #define SCANNER_H
 
-// Zoznam vsetkych tokenov podla specifikacie IFJ26
+// Maximalna dlzka atributu tokenu (v znakoch bez ukoncovacej nuly)
+#define MAX_TOKEN_LEN 1023
+
+// Typy lexikalnych jednotiek (tokenov) [podla sekcie 1.1 a 1.2 specifikacie]
 typedef enum {
-    TOKEN_EOF,          // Koniec suboru
-    TOKEN_EOL,          // Koniec riadku
-    
-    TOKEN_IDENTIFIER,   // Nazvy premennych
-    TOKEN_INTEGER,      // Cele cisla (Int)
-    TOKEN_DOUBLE,       // Desatinne cisla (Double)
-    TOKEN_STRING,       // Text (String)
+    // Specialne tokeny pre riadenie prekladu a odsadenia
+    TOKEN_EOF,              // Koniec suboru
+    TOKEN_EOL,              // Koniec logickeho riadku (\n)
+    TOKEN_INDENT,           // Zvacsenie urovne odsadenia (zaciatok bloku)
+    TOKEN_DEDENT,           // Zmensenie urovne odsadenia (koniec bloku)
+    TOKEN_ERROR,            // Lexikalna chyba [navratovy kod 1]
 
-    // Klucove slova
-    TOKEN_KW_DEF, TOKEN_KW_DO, TOKEN_KW_ELSE, TOKEN_KW_IF, 
-    TOKEN_KW_RETURN, TOKEN_KW_THEN, TOKEN_KW_WHILE, 
-    TOKEN_KW_VAL, TOKEN_KW_VAR, TOKEN_KW_INT, 
-    TOKEN_KW_DOUBLE_TYPE, TOKEN_KW_STRING_TYPE, TOKEN_KW_UNIT,
+    // Identifikator a literaly
+    TOKEN_IDENTIFIER,       // Bezne meno premennej alebo funkcie
+    TOKEN_UNDERSCORE,       // Samostatny znak '_' [nie je identifikator]
+    TOKEN_INTEGER,          // Celociselny literal (Int)
+    TOKEN_DOUBLE,           // Desatinny literal (Double)
+    TOKEN_STRING,           // Retazcovy literal (String)
 
-    // Operatory a interpunkcia
-    TOKEN_ASSIGN,       // =
-    TOKEN_EQ,           // ==
-    TOKEN_NEQ,          // !=
-    TOKEN_LT,           // <
-    TOKEN_LTE,          // <=
-    TOKEN_GT,           // >
-    TOKEN_GTE,          // >=
-    TOKEN_PLUS,         // +
-    TOKEN_MINUS,        // -
-    TOKEN_MUL,          // *
-    TOKEN_DIV,          // /
-    
-    TOKEN_LPAREN,       // (
-    TOKEN_RPAREN,       // )
-    TOKEN_COLON,        // :
-    TOKEN_COMMA,        // ,
-    TOKEN_AT,           // @ (pre @main)
+    // Zakladne klucove slova [sekcia 1.1]
+    TOKEN_KW_DEF,           // def
+    TOKEN_KW_DO,            // do
+    TOKEN_KW_ELSE,          // else
+    TOKEN_KW_IF,            // if
+    TOKEN_KW_IMPORT,        // import [povinne pre prolog import ifj26.*]
+    TOKEN_KW_RETURN,        // return
+    TOKEN_KW_THEN,          // then
+    TOKEN_KW_WHILE,         // while
+    TOKEN_KW_VAL,           // val
+    TOKEN_KW_VAR,           // var
+    TOKEN_KW_INT,           // Int
+    TOKEN_KW_DOUBLE_TYPE,   // Double
+    TOKEN_KW_STRING_TYPE,   // String
+    TOKEN_KW_UNIT,          // Unit
 
-    TOKEN_ERROR         // Lexikalna chyba (kod 1)
+    // Klucove slova pre rozsirenia [sekcia 1.1 pod ciarou a sekcia 5]
+    TOKEN_KW_BOOLEAN,       // Boolean
+    TOKEN_KW_TRUE,          // true
+    TOKEN_KW_FALSE,         // false
+    TOKEN_KW_CASE,          // case
+    TOKEN_KW_CLASS,         // class
+    TOKEN_KW_EXTENSION,     // extension
+    TOKEN_KW_FOR,           // for
+    TOKEN_KW_LIST,          // List
+    TOKEN_KW_MATCH,         // match
+    TOKEN_KW_TYPE,          // type
+    TOKEN_KW_TO,            // to
+    TOKEN_KW_UNTIL,         // until
+    TOKEN_KW_BY,            // by
+
+    // Operatory a oddelovace [sekcia 1.2, 2 a 3]
+    TOKEN_ASSIGN,           // =
+    TOKEN_PLUS,             // +
+    TOKEN_CONCAT,           // ++ (pre rozsirenie LISTS)
+    TOKEN_MINUS,            // -
+    TOKEN_MUL,              // *
+    TOKEN_DIV,              // /
+    TOKEN_EQ,               // ==
+    TOKEN_NEQ,              // !=
+    TOKEN_LT,               // <
+    TOKEN_LTE,              // <=
+    TOKEN_GT,               // >
+    TOKEN_GTE,              // >=
+    TOKEN_NOT,              // !  (pre rozsirenie BOOLTHEN)
+    TOKEN_AND,              // && (pre rozsirenie BOOLTHEN)
+    TOKEN_OR,               // || (pre rozsirenie BOOLTHEN)
+    TOKEN_PIPE,             // |  (pre rozsirenie ALGEBDT)
+    TOKEN_ARROW,            // => (pre rozsirenia ALGEBDT a LAMBDAS)
+    TOKEN_LEFT_ARROW,       // <- (pre rozsirenie CONTROL)
+    TOKEN_LPAREN,           // (
+    TOKEN_RPAREN,           // )
+    TOKEN_LBRACKET,         // [  (pre rozsirenie LISTS)
+    TOKEN_RBRACKET,         // ]  (pre rozsirenie LISTS)
+    TOKEN_COLON,            // :
+    TOKEN_COMMA,            // ,
+    TOKEN_SEMICOLON,        // ;  [oddelovac prikazov na riadku]
+    TOKEN_DOT,              // .  [pre import ifj26.* a clenske metody]
+    TOKEN_AT                // @  [pre anotaciu @main]
 } TokenType;
 
+// Struktura reprezentujuca jeden nacitany token
 typedef struct {
-    TokenType type;
-    char attribute[1024]; // Sem ulozime text tokenu
+    TokenType type;                     // Typ tokenu
+    char attribute[MAX_TOKEN_LEN + 1];  // Textova hodnota (pre id, cisla, stringy)
+    int indent;                         // Pocet medzier na zaciatku aktualneho logickeho riadku
+    int had_newline_before;             // 1 ak pred tokenom bol fyzicky koniec riadku (pre koncovu ciarku)
 } Token;
 
-Token get_next_token();
+/**
+ * @brief Resetuje vnutornu pamat a zasobnik odsadenia lexikalneho analyzatora.
+ */
+void scanner_init(void);
 
-#endif
+/**
+ * @brief Nacita a vrati dalsiu lexikalnu jednotku (token) zo standardneho vstupu.
+ * @return Struktura Token obsahujuca typ, atribut a informacie o odsadeni.
+ */
+Token get_next_token(void);
+
+#endif // SCANNER_H

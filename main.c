@@ -1,65 +1,56 @@
 /*
- * Autor: Andrej Beleš(xbelesa00)
- * VYGENERUJ MI: Aktualizovany main.c pre testovanie kompletneho scannera.
- * Program v cykle nacitava tokeny a vypisuje ich typ a atribut (text),
- * az kym nenarazi na TOKEN_EOF alebo lexikalnu chybu.
+ * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
+ * Subor: main.c
+ * Autor: Andrej Beles (xbelesa00)
+ *
+ * AI Prompt: "VYGENERUJ MI: Predpripraveny main.c pre IFJ26 s prepinacom
+ * medzi testovanim scannera a finalnym volanim parsera."
  */
 
 #include <stdio.h>
 #include "scanner.h"
+// #include "parser.h" (odkomentujeme, ked bude hotovy parser.h)
 
-// Pomocna funkcia, ktora do konzoly vypise, co scanner nasiel
-void print_token(Token t) {
-    printf("\n");
-    printf("Token: ");
-    
-    // Vypiseme ludsky nazov typu tokenu
-    switch(t.type) {
-        case TOKEN_EOF: printf("EOF"); break;
-        case TOKEN_EOL: printf("EOL (Koniec riadku)"); break;
-        case TOKEN_IDENTIFIER: printf("IDENTIFIER"); break;
-        case TOKEN_INTEGER: printf("INTEGER"); break;
-        case TOKEN_DOUBLE: printf("DOUBLE"); break;
-        case TOKEN_STRING: printf("STRING"); break;
-        case TOKEN_KW_DEF: printf("KW_DEF"); break;
-        case TOKEN_KW_VAL: printf("KW_VAL"); break;
-        case TOKEN_KW_INT: printf("KW_INT"); break;
-        case TOKEN_ASSIGN: printf("ASSIGN (=)"); break;
-        case TOKEN_PLUS: printf("PLUS (+)"); break;
-        case TOKEN_LPAREN: printf("LPAREN ("); break;
-        case TOKEN_RPAREN: printf("RPAREN )"); break;
-        case TOKEN_AT: printf("AT (@)"); break;
-        case TOKEN_ERROR: printf("ERROR"); break;
-        // Ak nie je zozname, vypiseme aspon jeho ciselny kod
-        default: printf("Iny operator alebo klucove slovo (kod %d)", t.type); break;
-    }
-    
-    // Ak si Scanner zapamatal aj nejaky text (atribut), vypiseme ho
+#define TEST_SCANNER    // (!zakomentujeme tento riadok, ked budete spajat projekt s Parserom)
+
+
+#ifdef TEST_SCANNER
+// Pomocna funkcia na vypis tokenu (vypisujeme na stderr, aby sme nespini stdout)
+static void print_token(Token t) {
+    fprintf(stderr, "Token: %d", t.type);
     if (t.attribute[0] != '\0') {
-        printf(" | Text: '%s'", t.attribute);
+        fprintf(stderr, " | Text: '%s'", t.attribute);
     }
+    fprintf(stderr, " | Indent: %d\n", t.indent);
 }
+#endif
 
-int main() {
-    printf("Prekladac IFJ - Test Scannera\n");
-    printf("Napis kod IFJ26, stlac Enter. Pre ukoncenie stlac Ctrl+D:\n");
-    printf("--------------------------------------------------------\n");
+/**
+ * Hlavny vstupny bod prekladaca IFJ26.
+ * [Program cita zo stdin, generuje IFJcode26 na stdout a vracia chybovy kod]
+ */
+int main(void) {
+    scanner_init();
 
+#ifdef TEST_SCANNER
+    // (docasny rezim pre lokane testovanie samotneho scannera)
     Token token;
-    
-    // Ziskavaj a vypisuj tokeny, kym nenarazis na koniec alebo chybu
     do {
         token = get_next_token();
         print_token(token);
     } while (token.type != TOKEN_EOF && token.type != TOKEN_ERROR);
 
-    // Spracovanie chyboveho ukoncenia [navratovy kod 1 = lexikalna chyba]
     if (token.type == TOKEN_ERROR) {
-        fprintf(stderr, "\nPreklad ukonceny: Lexikalna chyba (nepovoleny znak).\n");
-        return 1; 
+        fprintf(stderr, "Lexikalna chyba (kod 1).\n");
+        return 1; // [chyba 1 = chyba v ramci lexikalnej analyzy]
     }
-
-    // Uspesne ukoncenie [navratovy kod 0 = uspesny preklad]
-    printf("\nKoniec suboru (EOF). Vsetko OK.\n");
-    return 0; 
+    return 0;
+#else
+    // (finalny rezim pre odovzdanie - spusti syntakticku analyzu a preklad)
+    int result = parse(); 
+    if (result != 0) {
+        fprintf(stderr, "Preklad skoncil s chybou: %d\n", result);
+    }
+    return result; // [vracia 0 pri uspechu alebo kod chyby 1..10, 99]
+#endif
 }
