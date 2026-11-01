@@ -97,7 +97,6 @@ bool hash_table_insert(Symboldata *s, symtable *t) {
             return false;
         }
     }
-
     unsigned int hash_hodnota = hash_funkcia(s->meno);
     int index = hash_hodnota % t->velkost_tabulky;
     for (int i = 0; i < t->velkost_tabulky; i++) {
@@ -111,13 +110,35 @@ bool hash_table_insert(Symboldata *s, symtable *t) {
     return false;
 }
 
+char *make_compose_key(int scope_level, char *meno) {
+
+    int len = snprintf(NULL, 0, "%d$%s", scope_level, meno); // funkcia ktora pise do pamati na nejake dane miesto( ak je tam null nezapise nikam)
+    char *key = malloc(len + 1);
+    if (key == NULL) {
+        return NULL;
+    }
+    snprintf(key, len + 1, "%d$%s", scope_level, meno);
+    return key;
+}
+
 // vlozenie pramennej do tabulky
-bool insert_var(symtable *t, char *meno, Datatype typ) {
-    Symboldata *s = malloc(sizeof(Symboldata));
-    if (s == NULL) {
+bool insert_var(symtable *t, char *meno, Datatype typ, int scope_level) {
+
+    char *kluc = make_compose_key(scope_level, meno);
+    if (kluc == NULL) {
+        free(kluc);
         return false;
     }
-    s->meno = meno;
+    if (hash_table_lookup(kluc, t) != NULL) {
+        free(kluc);
+        return false;
+    }
+    Symboldata *s = malloc(sizeof(Symboldata));
+    if (s == NULL) {
+        free(kluc);
+        return false;
+    }
+    s->meno = kluc;
     s->typ = typ;
     s->is_function = false;
     s->param_count = 0;
@@ -126,6 +147,8 @@ bool insert_var(symtable *t, char *meno, Datatype typ) {
     if (hash_table_insert(s, t)) {
         return true;
     }
+    free(kluc);
+    free(s);
     return false;
 }
 bool insert_func(symtable *t, char *meno, Datatype return_typ, int param_count, Datatype *param_type) {
@@ -200,7 +223,8 @@ void delete_hash_tabulka(symtable *t) {
     free(t->hash_table); // nicis hastable
     free(t);             // nicis ukazovatel ndo pamate na tuto tabulku
 }
-// opravit delete, ist po NULL alebo kym to najdes a vsetko posunut o ten jeden vyssie hotovo
-// zmazat v insert ze nemoze byt ta dana funkcia 2x hotovo
+// zmazat v insert ze nemoze byt ta dana funkcia 2x hotovo //porozmyslat nad tym
 // specifikacie ifj - 4 odkaz dorob
-// sprav uvolennie celej tabulky hotovo
+// oprav uvolennie celej tabulky
+// lookup pozri ci je spravne
+// ked mas viac premennych s tym istym nazvom premennej 1 bud stac, 2 velka tabulka s inicializovanim
