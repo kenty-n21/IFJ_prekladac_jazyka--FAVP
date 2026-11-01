@@ -174,6 +174,27 @@ bool insert_func(symtable *t, char *meno, Datatype return_typ, int param_count, 
     return false;
 }
 
+Symboldata *lookup_var(int scope_level, char *meno, symtable *t) {
+    if (t == NULL) {
+        return NULL;
+    }
+    if (meno == NULL) {
+        return NULL;
+    }
+    for (int i = scope_level; i >= 0; i--) {
+        char *kluc = make_compose_key(i, meno);
+        if (kluc == NULL) {
+            return NULL;
+        }
+        Symboldata *hladane = hash_table_lookup(kluc, t);
+        free(kluc);
+        if (hladane != NULL) {
+            return hladane;
+        }
+    }
+    return NULL;
+}
+
 // hladanie v tabulke od indexu kde ma byt a dalej
 Symboldata *hash_table_lookup(char *s, symtable *t) {
     if (s == NULL || t == NULL) {
