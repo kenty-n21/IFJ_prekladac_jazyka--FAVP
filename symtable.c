@@ -173,7 +173,7 @@ bool insert_func(symtable *t, char *meno, Datatype return_typ, int param_count, 
     free(s);
     return false;
 }
-
+// hladanie kluca vnorenych funkciach
 Symboldata *lookup_var(int scope_level, char *meno, symtable *t) {
     if (t == NULL) {
         return NULL;
@@ -213,6 +213,25 @@ Symboldata *hash_table_lookup(char *s, symtable *t) {
     }
     return NULL;
 }
+
+void exit_scope(int scope_level, symtable *t) {
+    if (t == NULL) {
+        return;
+    }
+    for (int i = 0; i < t->velkost_tabulky; i++) {
+        if (t->hash_table[i] == NULL || t->hash_table[i] == delete_item) {
+            continue;
+        }
+        int level_zanorenia = atoi(t->hash_table[i]->meno);
+        if (level_zanorenia == scope_level) {
+            free(t->hash_table[i]->meno);
+            free(t->hash_hodnota[i]);
+            t->hash_table[i] = delete_item;
+            t->pocet_synbolov--;
+        }
+    }
+}
+
 // zmazanie daneho synbolu bud na indexe alebo dalej
 Symboldata *hash_table_delete(char *s, symtable *t) {
     if (s == NULL || t == NULL)
@@ -233,6 +252,8 @@ Symboldata *hash_table_delete(char *s, symtable *t) {
     }
     return NULL;
 }
+
+// zmaze celu tabulku
 void delete_hash_tabulka(symtable *t) {
 
     for (int i = 0; i < t->velkost_tabulky; i++) {
