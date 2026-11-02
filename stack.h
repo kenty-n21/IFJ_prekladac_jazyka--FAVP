@@ -11,17 +11,23 @@
 
 //Symboly, s ktorými pracuje precedenčná tabuľka
 typedef enum{
-    SYM_PLUS,
-    SYM_MINUS,
-    SYM_MUL,
-    SYM_DIV,
-    SYM_RPAR,
-    SYM_LPAR,
-    SYM_ID,
-    SYM_REL_OP,
-    SYM_STOP,
-    SYM_DOLLAR,
-    SYM_NONTERM
+    SYM_PLUS,       // +
+    SYM_UNARY_MIN,  // - (ako znamienko nie operacia)
+    SYM_MINUS,      // -
+    SYM_MUL,        // *
+    SYM_DIV,        // /
+    SYM_RPAR,       // )
+    SYM_LPAR,       // (
+    SYM_ID,         // id
+    SYM_LT,         // <
+    SYM_GT,         // >
+    SYM_LTE,        // <=
+    SYM_GTE,        // >=
+    SYM_EQ,         // ==
+    SYM_NEQ,        // !=
+    SYM_DOLLAR,     // $
+    SYM_NONTERM,
+    SYM_STOP
 }PrecSymbol;
 
 //dátové typy pre sémantickú kontrolu
@@ -33,7 +39,6 @@ typedef enum{
     TYPE_UNIT,
     TYPE_UNDEFINED
 }Datatype;
-
 
 
 typedef struct TSData{
