@@ -16,15 +16,15 @@ typedef enum{
     SYM_MINUS,      // -
     SYM_MUL,        // *
     SYM_DIV,        // /
-    SYM_RPAR,       // )
-    SYM_LPAR,       // (
-    SYM_ID,         // id
     SYM_LT,         // <
     SYM_GT,         // >
     SYM_LTE,        // <=
     SYM_GTE,        // >=
     SYM_EQ,         // ==
     SYM_NEQ,        // !=
+    SYM_LPAR,       // (
+    SYM_RPAR,       // )
+    SYM_ID,         // id
     SYM_DOLLAR,     // $
     SYM_NONTERM,
     SYM_STOP
@@ -38,11 +38,11 @@ typedef enum{
     TYPE_BOOL,
     TYPE_UNIT,
     TYPE_UNDEFINED
-}Datatype;
+}DataType;
 
 
 typedef struct TSData{
-    Datatype type;
+    DataType type;
     PrecSymbol symbol;
 }TSData;
 
