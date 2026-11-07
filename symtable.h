@@ -20,7 +20,6 @@ typedef struct {
     int param_count;
     Datatype *param_type;
     symtable *local_table;
-    bool define;
     int scope_level;
 
 } Symboldata;

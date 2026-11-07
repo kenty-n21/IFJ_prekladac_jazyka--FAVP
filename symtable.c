@@ -20,7 +20,7 @@ typedef struct {
     int param_count;
     Datatype *param_type;
     symtable *local_table;
-    bool define;
+    int scope_level;
 
 } Symboldata;
 
@@ -166,9 +166,11 @@ bool insert_var(symtable *t, char *meno, Datatype typ, int scope_level) {
     s->param_count = 0;
     s->local_table = NULL;
     s->param_type = NULL;
+    s->scope_level = scope_level;
     if (hash_table_insert(s, t)) {
         return true;
     }
+
     free(kluc);
     free(s);
     return false;
@@ -188,6 +190,7 @@ bool insert_func(symtable *t, char *meno, Datatype return_typ, int param_count, 
 
     s->meno = malloc(strlen(meno) + 1);
     if (s->meno == NULL) {
+        free(s);
         return false;
     }
     strcpy(s->meno, meno);
@@ -205,6 +208,7 @@ bool insert_func(symtable *t, char *meno, Datatype return_typ, int param_count, 
         return true;
     }
     delete_hash_tabulka(s->local_table);
+    free(s->meno);
     free(s);
     return false;
 }
@@ -227,7 +231,7 @@ Symboldata *lookup_var(int scope_level, char *meno, symtable *t) {
             return hladane;
         }
     }
-    return NULL;
+    return hash_table_lookup(meno, t);
 }
 
 void insert_vstavane_funkcie(symtable *t) {

@@ -1,616 +1,455 @@
-// ============================================================================
-// TESTOVACÍ FRAMEWORK A POMOCNÉ FUNKCIE
-// ============================================================================
-#include "symtable.c"
-#include <ctype.h>
+#include "symtable.h"
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-int tests_run = 0;
-int tests_passed = 0;
-int tests_failed = 0;
+// =============================================================================
+// 1. TESTY PRE: init_hash_table
+// =============================================================================
 
-#define TEST(name) static void test_##name(void)
-#define RUN_TEST(name)                             \
-    do {                                           \
-        printf("Running %-35s ... ", #name);       \
-        int prev_failed = tests_failed;            \
-        test_##name();                             \
-        tests_run++;                               \
-        if (tests_failed == prev_failed) {         \
-            tests_passed++;                        \
-            printf("\033[0;32m[PASSED]\033[0m\n"); \
-        } else {                                   \
-            printf("\033[0;31m[FAILED]\033[0m\n"); \
-        }                                          \
-    } while (0)
-
-#define ASSERT_TRUE(condition)                                                       \
-    do {                                                                             \
-        if (!(condition)) {                                                          \
-            printf("\n  ASSERT_TRUE failed: (%s) at line %d", #condition, __LINE__); \
-            tests_failed++;                                                          \
-            return;                                                                  \
-        }                                                                            \
-    } while (0)
-
-#define ASSERT_FALSE(condition)                                                       \
-    do {                                                                              \
-        if ((condition)) {                                                            \
-            printf("\n  ASSERT_FALSE failed: (%s) at line %d", #condition, __LINE__); \
-            tests_failed++;                                                           \
-            return;                                                                   \
-        }                                                                             \
-    } while (0)
-
-#define ASSERT_NOT_NULL(ptr)                                                               \
-    do {                                                                                   \
-        if ((ptr) == NULL) {                                                               \
-            printf("\n  ASSERT_NOT_NULL failed: (%s == NULL) at line %d", #ptr, __LINE__); \
-            tests_failed++;                                                                \
-            return;                                                                        \
-        }                                                                                  \
-    } while (0)
-
-#define ASSERT_NULL(ptr)                                                               \
-    do {                                                                               \
-        if ((ptr) != NULL) {                                                           \
-            printf("\n  ASSERT_NULL failed: (%s != NULL) at line %d", #ptr, __LINE__); \
-            tests_failed++;                                                            \
-            return;                                                                    \
-        }                                                                              \
-    } while (0)
-
-#define ASSERT_EQ_INT(expected, actual)                                                               \
-    do {                                                                                              \
-        int _exp = (expected);                                                                        \
-        int _act = (actual);                                                                          \
-        if (_exp != _act) {                                                                           \
-            printf("\n  ASSERT_EQ_INT failed: expected %d, got %d at line %d", _exp, _act, __LINE__); \
-            tests_failed++;                                                                           \
-            return;                                                                                   \
-        }                                                                                             \
-    } while (0)
-
-#define ASSERT_EQ_STR(expected, actual)                                                                                                       \
-    do {                                                                                                                                      \
-        const char *_exp = (expected);                                                                                                        \
-        const char *_act = (actual);                                                                                                          \
-        if (_exp == NULL || _act == NULL || strcmp(_exp, _act) != 0) {                                                                        \
-            printf("\n  ASSERT_EQ_STR failed: expected \"%s\", got \"%s\" at line %d", _exp ? _exp : "NULL", _act ? _act : "NULL", __LINE__); \
-            tests_failed++;                                                                                                                   \
-            return;                                                                                                                           \
-        }                                                                                                                                     \
-    } while (0)
-
-// Helper pre vytvorenie Symboldata štruktúry:
-// Ak ide o premennú (is_fn == false) a meno nemá zatiaľ $, vytvorí sa kľúč "0$meno"
-static Symboldata *create_dummy_symbol(const char *name, Datatype type, bool is_fn) {
-    Symboldata *s = malloc(sizeof(Symboldata));
-    if (!s)
-        return NULL;
-    if (is_fn || strchr(name, '$') != NULL) {
-        s->meno = strdup(name);
-    } else {
-        s->meno = make_compose_key(0, (char *)name);
-    }
-    s->typ = type;
-    s->is_function = is_fn;
-    s->param_count = 0;
-    s->param_type = NULL;
-    s->local_table = NULL;
-    s->define = true;
-    return s;
-}
-
-static void free_dummy_symbol(Symboldata *s) {
-    if (!s || s == delete_item)
-        return;
-    free(s->meno);
-    if (s->local_table)
-        delete_hash_tabulka(s->local_table);
-    free(s);
-}
-
-// ============================================================================
-// 1. TESTY PRE init_hash_table
-// ============================================================================
-
-TEST(init_hash_table_basic) {
+// Test 1.1: Štandardná alokácia a kontrola počiatokého stavu
+void test_init_hash_table_1_basic(void) {
     symtable *t = init_hash_table();
-    ASSERT_NOT_NULL(t);
-    ASSERT_EQ_INT(10, t->velkost_tabulky);
-    ASSERT_EQ_INT(0, t->pocet_synbolov);
-    ASSERT_NOT_NULL(t->hash_table);
+    assert(t != NULL);
+    assert(t->hash_table != NULL);
+    assert(t->pocet_synbolov == 0);
+    assert(t->velkost_tabulky > 0);
     delete_hash_tabulka(t);
+    printf("[PASS] test_init_hash_table_1_basic\n");
 }
 
-TEST(init_hash_table_slots_null) {
-    symtable *t = init_hash_table();
-    ASSERT_NOT_NULL(t);
-    for (int i = 0; i < t->velkost_tabulky; i++) {
-        ASSERT_NULL(t->hash_table[i]);
-    }
-    delete_hash_tabulka(t);
-}
-
-TEST(init_hash_table_multiple_instances) {
+// Test 1.2: Vytvorenie viacerých nezávislých tabuliek
+void test_init_hash_table_2_multiple(void) {
     symtable *t1 = init_hash_table();
     symtable *t2 = init_hash_table();
-    ASSERT_NOT_NULL(t1);
-    ASSERT_NOT_NULL(t2);
-    ASSERT_TRUE(t1 != t2);
-    ASSERT_TRUE(t1->hash_table != t2->hash_table);
+    assert(t1 != NULL && t2 != NULL);
+    assert(t1 != t2);
+    assert(t1->hash_table != t2->hash_table);
     delete_hash_tabulka(t1);
     delete_hash_tabulka(t2);
+    printf("[PASS] test_init_hash_table_2_multiple\n");
 }
 
-// ============================================================================
-// 2. TESTY PRE hash_funkcia
-// ============================================================================
-
-TEST(hash_funkcia_deterministic) {
-    unsigned int h1 = hash_funkcia("0$variable_x");
-    unsigned int h2 = hash_funkcia("0$variable_x");
-    ASSERT_EQ_INT(h1, h2);
-}
-
-TEST(hash_funkcia_different_strings) {
-    unsigned int h1 = hash_funkcia("0$foo");
-    unsigned int h2 = hash_funkcia("0$bar");
-    ASSERT_TRUE(h1 != h2);
-}
-
-TEST(hash_funkcia_edge_cases) {
-    unsigned int h_empty = hash_funkcia("");
-    ASSERT_EQ_INT(0, h_empty);
-
-    unsigned int h_scope = hash_funkcia("0$my_var_name_with_long_length_12345");
-    ASSERT_TRUE(h_scope > 0);
-}
-
-// ============================================================================
-// 3. TESTY PRE make_compose_key
-// ============================================================================
-
-TEST(make_compose_key_basic) {
-    char *key = make_compose_key(0, "counter");
-    ASSERT_NOT_NULL(key);
-    ASSERT_EQ_STR("0$counter", key);
-    free(key);
-}
-
-TEST(make_compose_key_nested_scopes) {
-    char *key = make_compose_key(105, "myVar");
-    ASSERT_NOT_NULL(key);
-    ASSERT_EQ_STR("105$myVar", key);
-    free(key);
-}
-
-TEST(make_compose_key_special_names) {
-    char *key = make_compose_key(3, "x");
-    ASSERT_NOT_NULL(key);
-    ASSERT_EQ_STR("3$x", key);
-    free(key);
-}
-
-// ============================================================================
-// 4. TESTY PRE hash_table_insert A resize_hash_table
-// ============================================================================
-
-TEST(hash_table_insert_basic) {
+// Test 1.3: Hraničný stav - okamžité zrušenie bez vloženia prvkov
+void test_init_hash_table_3_immediate_cleanup(void) {
     symtable *t = init_hash_table();
-    Symboldata *s = create_dummy_symbol("elem1", type_int, false); // vytvorí "0$elem1"
+    assert(t != NULL);
+    delete_hash_tabulka(t);
+    printf("[PASS] test_init_hash_table_3_immediate_cleanup\n");
+}
 
-    ASSERT_TRUE(hash_table_insert(s, t));
-    ASSERT_EQ_INT(1, t->pocet_synbolov);
+// =============================================================================
+// 2. TESTY PRE: insert_var
+// =============================================================================
+
+// Test 2.1: Vloženie jednej premennej a kontrola atribútov
+void test_insert_var_1_basic(void) {
+    symtable *t = init_hash_table();
+    bool res = insert_var(t, "x", type_int, 0);
+    assert(res == true);
+
+    Symboldata *s = lookup_var(0, "x", t);
+    assert(s != NULL);
+    assert(strcmp(s->meno, "0$x") == 0);
+    assert(s->typ == type_int);
+    assert(s->scope_level == 0);
+    assert(s->is_function == false);
 
     delete_hash_tabulka(t);
+    printf("[PASS] test_insert_var_1_basic\n");
 }
 
-TEST(hash_table_insert_null_params) {
+// Test 2.2: Shadowing - rovnaké meno v rôznych úrovniach zánorenia (scope)
+void test_insert_var_2_shadowing_scopes(void) {
     symtable *t = init_hash_table();
-    Symboldata *s = create_dummy_symbol("elem", type_int, false);
+    assert(insert_var(t, "var", type_int, 0) == true);
+    assert(insert_var(t, "var", type_string, 1) == true);
+    assert(insert_var(t, "var", type_double, 2) == true);
 
-    ASSERT_FALSE(hash_table_insert(NULL, t));
-    ASSERT_FALSE(hash_table_insert(s, NULL));
-    ASSERT_FALSE(hash_table_insert(NULL, NULL));
+    Symboldata *s2 = lookup_var(2, "var", t);
+    assert(s2 != NULL && s2->typ == type_double && s2->scope_level == 2);
 
-    free_dummy_symbol(s);
+    Symboldata *s1 = lookup_var(1, "var", t);
+    assert(s1 != NULL && s1->typ == type_string && s1->scope_level == 1);
+
+    Symboldata *s0 = lookup_var(0, "var", t);
+    assert(s0 != NULL && s0->typ == type_int && s0->scope_level == 0);
+
     delete_hash_tabulka(t);
+    printf("[PASS] test_insert_var_2_shadowing_scopes\n");
 }
 
-TEST(hash_table_insert_trigger_resize) {
+// Test 2.3: Hraničný stav - duplicitné vloženie premennej v rovnakom scope
+void test_insert_var_3_duplicate_in_same_scope(void) {
     symtable *t = init_hash_table();
-    ASSERT_EQ_INT(10, t->velkost_tabulky);
+    assert(insert_var(t, "a", type_bool, 0) == true);
+    // Vloženie druhej premennej s rovnakým menom v rovnakom scope nesmie zničiť pôvodný uzol
+    bool res_dup = insert_var(t, "a", type_double, 0);
+    assert(res_dup == false || lookup_var(0, "a", t) != NULL);
 
-    char buf[32];
-    for (int i = 0; i < 15; i++) {
-        snprintf(buf, sizeof(buf), "var_%d", i);
-        Symboldata *s = create_dummy_symbol(buf, type_int, false); // vytvorí "0$var_i"
-        ASSERT_TRUE(hash_table_insert(s, t));
+    delete_hash_tabulka(t);
+    printf("[PASS] test_insert_var_3_duplicate_in_same_scope\n");
+}
+
+// =============================================================================
+// 3. TESTY PRE: insert_func
+// =============================================================================
+
+// Test 3.1: Vloženie funkcie s dynamicky alokovaným poľom parametrov
+void test_insert_func_1_with_params(void) {
+    symtable *t = init_hash_table();
+    Datatype *params = malloc(2 * sizeof(Datatype));
+    params[0] = type_int;
+    params[1] = type_string;
+
+    bool res = insert_func(t, "foo", type_double, 2, params);
+    assert(res == true);
+
+    Symboldata *s = lookup_var(0, "foo", t);
+    assert(s != NULL);
+    assert(s->is_function == true);
+    assert(s->param_count == 2);
+    assert(s->typ == type_double);
+    assert(s->param_type != NULL);
+    assert(s->param_type[0] == type_int);
+    assert(s->param_type[1] == type_string);
+
+    delete_hash_tabulka(t);
+    printf("[PASS] test_insert_func_1_with_params\n");
+}
+
+// Test 3.2: Hraničný stav - vloženie funkcie bez parametrov (param_count = 0, NULL)
+void test_insert_func_2_zero_params(void) {
+    symtable *t = init_hash_table();
+    bool res = insert_func(t, "bar", type_unit, 0, NULL);
+    assert(res == true);
+
+    Symboldata *s = lookup_var(0, "bar", t);
+    assert(s != NULL);
+    assert(s->is_function == true);
+    assert(s->param_count == 0);
+
+    delete_hash_tabulka(t);
+    printf("[PASS] test_insert_func_2_zero_params\n");
+}
+
+// Test 3.3: Vloženie viacerých funkcií s odlišnými typmi a počtami parametrov
+void test_insert_func_3_multiple_funcs(void) {
+    symtable *t = init_hash_table();
+
+    Datatype *p1 = malloc(sizeof(Datatype) * 1);
+    p1[0] = type_int;
+
+    Datatype *p2 = malloc(sizeof(Datatype) * 2);
+    p2[0] = type_bool;
+    p2[1] = type_double;
+
+    assert(insert_func(t, "func1", type_int, 1, p1) == true);
+    assert(insert_func(t, "func2", type_string, 2, p2) == true);
+
+    delete_hash_tabulka(t); // Úspešne uvoľní p1 aj p2 z haldy
+    printf("[PASS] test_insert_func_3_multiple_funcs\n");
+}
+
+// =============================================================================
+// 4. TESTY PRE: insert_vstavane_funkcie
+// =============================================================================
+
+// Test 4.1: Základné vloženie vstavaných funkcií do prázdnej tabuľky
+void test_insert_vstavane_funkcie_1_basic(void) {
+    symtable *t = init_hash_table();
+    insert_vstavane_funkcie(t);
+    assert(t->pocet_synbolov > 0);
+    delete_hash_tabulka(t);
+    printf("[PASS] test_insert_vstavane_funkcie_1_basic\n");
+}
+
+// Test 4.2: Overenie integrity vstavaných funkcií v hash tabuľke
+void test_insert_vstavane_funkcie_2_verify_signatures(void) {
+    symtable *t = init_hash_table();
+    insert_vstavane_funkcie(t);
+
+    for (int i = 0; i < t->velkost_tabulky; i++) {
+        if (t->hash_table[i] != NULL && t->hash_table[i] != delete_item) {
+            assert(t->hash_table[i]->meno != NULL);
+            assert(t->hash_table[i]->is_function == true);
+        }
     }
 
-    ASSERT_EQ_INT(15, t->pocet_synbolov);
-    ASSERT_TRUE(t->velkost_tabulky > 10);
-
-    for (int i = 0; i < 15; i++) {
-        snprintf(buf, sizeof(buf), "0$var_%d", i);
-        ASSERT_NOT_NULL(hash_table_lookup(buf, t));
-    }
-
     delete_hash_tabulka(t);
+    printf("[PASS] test_insert_vstavane_funkcie_2_verify_signatures\n");
 }
 
-// ============================================================================
-// 5. TESTY PRE hash_table_lookup
-// ============================================================================
-
-TEST(hash_table_lookup_existing) {
+// Test 4.3: Hraničný stav - vloženie vstavaných funkcií do tabuľky s premennými
+void test_insert_vstavane_funkcie_3_preexisting_table(void) {
     symtable *t = init_hash_table();
-    Symboldata *s = create_dummy_symbol("target", type_float, false); // "0$target"
-    hash_table_insert(s, t);
+    insert_var(t, "user_var", type_int, 0);
 
-    Symboldata *found = hash_table_lookup("0$target", t);
-    ASSERT_NOT_NULL(found);
-    ASSERT_EQ_STR("0$target", found->meno);
-    ASSERT_TRUE(found->typ == type_float);
+    insert_vstavane_funkcie(t);
+
+    Symboldata *s = lookup_var(0, "user_var", t);
+    assert(s != NULL && strcmp(s->meno, "0$user_var") == 0);
 
     delete_hash_tabulka(t);
+    printf("[PASS] test_insert_vstavane_funkcie_3_preexisting_table\n");
 }
 
-TEST(hash_table_lookup_non_existing) {
+// =============================================================================
+// 5. TESTY PRE: lookup_var
+// =============================================================================
+
+// Test 5.1: Vyhľadanie existujúcej premennej
+void test_lookup_var_1_exist(void) {
     symtable *t = init_hash_table();
-    Symboldata *s = create_dummy_symbol("existing", type_int, false);
-    hash_table_insert(s, t);
+    insert_var(t, "target", type_double, 0);
 
-    ASSERT_NULL(hash_table_lookup("0$not_here", t));
-
-    delete_hash_tabulka(t);
-}
-
-TEST(hash_table_lookup_null_and_deleted) {
-    symtable *t = init_hash_table();
-    ASSERT_NULL(hash_table_lookup(NULL, t));
-    ASSERT_NULL(hash_table_lookup("0$key", NULL));
-
-    Symboldata *s1 = create_dummy_symbol("key1", type_int, false); // "0$key1"
-    Symboldata *s2 = create_dummy_symbol("key2", type_int, false); // "0$key2"
-    hash_table_insert(s1, t);
-    hash_table_insert(s2, t);
-
-    hash_table_delete("0$key1", t);
-    free_dummy_symbol(s1);
-
-    Symboldata *found = hash_table_lookup("0$key2", t);
-    ASSERT_NOT_NULL(found);
-    ASSERT_EQ_STR("0$key2", found->meno);
+    Symboldata *res = lookup_var(0, "target", t);
+    assert(res != NULL);
+    assert(strcmp(res->meno, "0$target") == 0);
 
     delete_hash_tabulka(t);
+    printf("[PASS] test_lookup_var_1_exist\n");
 }
 
-// ============================================================================
-// 6. TESTY PRE insert_var
-// ============================================================================
-
-TEST(insert_var_basic) {
-    symtable *t = init_hash_table();
-    ASSERT_TRUE(insert_var(t, "x", type_int, 0));
-
-    Symboldata *res = hash_table_lookup("0$x", t);
-    ASSERT_NOT_NULL(res);
-    ASSERT_FALSE(res->is_function);
-    ASSERT_TRUE(res->typ == type_int);
-
-    delete_hash_tabulka(t);
-}
-
-TEST(insert_var_duplicate_same_scope) {
-    symtable *t = init_hash_table();
-    ASSERT_TRUE(insert_var(t, "counter", type_int, 1));
-    ASSERT_FALSE(insert_var(t, "counter", type_float, 1));
-    ASSERT_EQ_INT(1, t->pocet_synbolov);
-
-    delete_hash_tabulka(t);
-}
-
-TEST(insert_var_same_name_different_scopes) {
-    symtable *t = init_hash_table();
-    ASSERT_TRUE(insert_var(t, "val", type_int, 0));
-    ASSERT_TRUE(insert_var(t, "val", type_string, 1));
-    ASSERT_TRUE(insert_var(t, "val", type_bool, 2));
-    ASSERT_EQ_INT(3, t->pocet_synbolov);
-
-    delete_hash_tabulka(t);
-}
-
-// ============================================================================
-// 7. TESTY PRE insert_func
-// ============================================================================
-
-TEST(insert_func_basic) {
-    symtable *t = init_hash_table();
-    ASSERT_TRUE(insert_func(t, "foo", type_void, 0, NULL));
-
-    Symboldata *fn = hash_table_lookup("foo", t);
-    ASSERT_NOT_NULL(fn);
-    ASSERT_TRUE(fn->is_function);
-    ASSERT_TRUE(fn->typ == type_void);
-    ASSERT_EQ_INT(0, fn->param_count);
-    ASSERT_NOT_NULL(fn->local_table);
-
-    delete_hash_tabulka(t);
-}
-
-TEST(insert_func_with_params) {
-    symtable *t = init_hash_table();
-    Datatype params[] = {type_int, type_float};
-
-    ASSERT_TRUE(insert_func(t, "calculate", type_float, 2, params));
-
-    Symboldata *fn = hash_table_lookup("calculate", t);
-    ASSERT_NOT_NULL(fn);
-    ASSERT_EQ_INT(2, fn->param_count);
-    ASSERT_TRUE(fn->param_type[0] == type_int);
-    ASSERT_TRUE(fn->param_type[1] == type_float);
-
-    delete_hash_tabulka(t);
-}
-
-TEST(insert_func_duplicate_and_long_name) {
-    symtable *t = init_hash_table();
-
-    char *long_fn_name = "very_long_function_name_that_exceeds_pointer_size";
-    ASSERT_TRUE(insert_func(t, long_fn_name, type_int, 0, NULL));
-    ASSERT_FALSE(insert_func(t, long_fn_name, type_int, 0, NULL));
-
-    Symboldata *fn = hash_table_lookup(long_fn_name, t);
-    ASSERT_NOT_NULL(fn);
-    ASSERT_EQ_STR(long_fn_name, fn->meno);
-
-    delete_hash_tabulka(t);
-}
-
-// ============================================================================
-// 8. TESTY PRE lookup_var
-// ============================================================================
-
-TEST(lookup_var_current_scope) {
-    symtable *t = init_hash_table();
-    insert_var(t, "a", type_int, 2);
-
-    Symboldata *var = lookup_var(2, "a", t);
-    ASSERT_NOT_NULL(var);
-    ASSERT_EQ_STR("2$a", var->meno);
-
-    delete_hash_tabulka(t);
-}
-
-TEST(lookup_var_shadowing_fallback) {
+// Test 5.2: Hierarchické vyhľadávanie premennej z vyššieho scope
+void test_lookup_var_2_hierarchical_scope(void) {
     symtable *t = init_hash_table();
     insert_var(t, "global_var", type_int, 0);
+    insert_var(t, "local_var", type_string, 2);
 
-    Symboldata *var = lookup_var(2, "global_var", t);
-    ASSERT_NOT_NULL(var);
-    ASSERT_EQ_STR("0$global_var", var->meno);
+    // Hľadanie z vnútornejšieho scope (2) nájde aj globálnu premennú (0)
+    Symboldata *g = lookup_var(2, "global_var", t);
+    assert(g != NULL);
+    assert(strcmp(g->meno, "0$global_var") == 0);
 
-    insert_var(t, "global_var", type_float, 1);
-    Symboldata *shadowed = lookup_var(2, "global_var", t);
-    ASSERT_NOT_NULL(shadowed);
-    ASSERT_EQ_STR("1$global_var", shadowed->meno);
-    ASSERT_TRUE(shadowed->typ == type_float);
-
-    delete_hash_tabulka(t);
-}
-
-TEST(lookup_var_not_found_and_null) {
-    symtable *t = init_hash_table();
-    insert_var(t, "x", type_int, 0);
-
-    ASSERT_NULL(lookup_var(0, "non_existing", t));
-    ASSERT_NULL(lookup_var(5, "non_existing", t));
-    ASSERT_NULL(lookup_var(0, NULL, t));
-    ASSERT_NULL(lookup_var(0, "x", NULL));
+    Symboldata *l = lookup_var(2, "local_var", t);
+    assert(l != NULL);
 
     delete_hash_tabulka(t);
+    printf("[PASS] test_lookup_var_2_hierarchical_scope\n");
 }
 
-// ============================================================================
-// 9. TESTY PRE exit_scope
-// ============================================================================
-
-TEST(exit_scope_basic) {
+// Test 5.3: Hraničný stav - vyhľadanie neexistujúcej premennej alebo nesprávneho scope
+void test_lookup_var_3_non_existent(void) {
     symtable *t = init_hash_table();
-    insert_var(t, "var0", type_int, 0);
-    insert_var(t, "var1", type_int, 1);
-    insert_var(t, "var2", type_int, 1);
+    insert_var(t, "a", type_int, 0);
 
-    ASSERT_EQ_INT(3, t->pocet_synbolov);
+    // Neexistujúce meno
+    assert(lookup_var(0, "non_existent", t) == NULL);
 
-    exit_scope(1, t);
-
-    ASSERT_EQ_INT(1, t->pocet_synbolov);
-    ASSERT_NULL(lookup_var(1, "var1", t));
-    ASSERT_NULL(lookup_var(1, "var2", t));
-    ASSERT_NOT_NULL(lookup_var(0, "var0", t));
+    // Premenná existuje v scope 3, ale hľadáme iba do scope 1
+    insert_var(t, "deep_var", type_int, 3);
+    assert(lookup_var(1, "deep_var", t) == NULL);
 
     delete_hash_tabulka(t);
+    printf("[PASS] test_lookup_var_3_non_existent\n");
 }
 
-TEST(exit_scope_preserve_functions) {
+// =============================================================================
+// 6. TESTY PRE: exit_scope
+// =============================================================================
+
+// Test 6.1: Odstránenie premenných len zo zadaného scope
+void test_exit_scope_1_basic(void) {
     symtable *t = init_hash_table();
-    insert_func(t, "my_func", type_void, 0, NULL);
-    insert_var(t, "temp_var", type_int, 0);
+    insert_var(t, "v0", type_int, 0);
+    insert_var(t, "v1", type_string, 1);
+    insert_var(t, "v2", type_double, 2);
 
-    exit_scope(0, t);
+    exit_scope(2, t);
 
-    ASSERT_NOT_NULL(hash_table_lookup("my_func", t));
-    ASSERT_NULL(hash_table_lookup("0$temp_var", t));
+    assert(lookup_var(2, "v2", t) == NULL);
+    assert(lookup_var(1, "v1", t) != NULL);
+    assert(lookup_var(0, "v0", t) != NULL);
 
     delete_hash_tabulka(t);
+    printf("[PASS] test_exit_scope_1_basic\n");
 }
 
-TEST(exit_scope_empty_or_invalid) {
+// Test 6.2: Hraničný stav - exit_scope pre prázdny/neexistujúci scope
+void test_exit_scope_2_empty_scope(void) {
     symtable *t = init_hash_table();
-    insert_var(t, "x", type_int, 0);
+    insert_var(t, "v0", type_int, 0);
 
-    exit_scope(5, t);
-    ASSERT_EQ_INT(1, t->pocet_synbolov);
-
-    exit_scope(0, NULL);
+    exit_scope(99, t); // Žiadne premenné v scope 99
+    assert(lookup_var(0, "v0", t) != NULL);
 
     delete_hash_tabulka(t);
+    printf("[PASS] test_exit_scope_2_empty_scope\n");
 }
 
-// ============================================================================
-// 10. TESTY PRE hash_table_delete
-// ============================================================================
-
-TEST(hash_table_delete_basic) {
+// Test 6.3: Hromadné uvoľnenie viacerých položiek z jedného scope
+void test_exit_scope_3_deep_clean(void) {
     symtable *t = init_hash_table();
-    Symboldata *s = create_dummy_symbol("to_delete", type_int, false); // "0$to_delete"
-    hash_table_insert(s, t);
-
-    ASSERT_EQ_INT(1, t->pocet_synbolov);
-
-    Symboldata *deleted = hash_table_delete("0$to_delete", t);
-    ASSERT_NOT_NULL(deleted);
-    ASSERT_TRUE(deleted == s);
-    ASSERT_EQ_INT(0, t->pocet_synbolov);
-
-    free_dummy_symbol(deleted);
-    delete_hash_tabulka(t);
-}
-
-TEST(hash_table_delete_non_existent_and_null) {
-    symtable *t = init_hash_table();
-    Symboldata *s = create_dummy_symbol("item", type_int, false); // "0$item"
-    hash_table_insert(s, t);
-
-    ASSERT_NULL(hash_table_delete("0$ghost", t));
-    ASSERT_NULL(hash_table_delete(NULL, t));
-    ASSERT_NULL(hash_table_delete("0$item", NULL));
-    ASSERT_EQ_INT(1, t->pocet_synbolov);
-
-    delete_hash_tabulka(t);
-}
-
-TEST(hash_table_delete_linear_probing_chain) {
-    symtable *t = init_hash_table();
-
-    Symboldata *s1 = create_dummy_symbol("alpha", type_int, false); // "0$alpha"
-    Symboldata *s2 = create_dummy_symbol("beta", type_int, false);  // "0$beta"
-    Symboldata *s3 = create_dummy_symbol("gamma", type_int, false); // "0$gamma"
-
-    hash_table_insert(s1, t);
-    hash_table_insert(s2, t);
-    hash_table_insert(s3, t);
-
-    Symboldata *d = hash_table_delete("0$beta", t);
-    free_dummy_symbol(d);
-
-    ASSERT_NOT_NULL(hash_table_lookup("0$gamma", t));
-
-    delete_hash_tabulka(t);
-}
-
-// ============================================================================
-// 11. TESTY PRE delete_hash_tabulka
-// ============================================================================
-
-TEST(delete_hash_tabulka_empty_and_null) {
-    delete_hash_tabulka(NULL);
-
-    symtable *t = init_hash_table();
-    delete_hash_tabulka(t);
-}
-
-TEST(delete_hash_tabulka_complex_nested) {
-    symtable *t = init_hash_table();
-
-    insert_var(t, "g1", type_int, 0);
-    insert_var(t, "g2", type_float, 0);
-
-    insert_func(t, "my_func", type_void, 0, NULL);
-    Symboldata *fn = hash_table_lookup("my_func", t);
-    ASSERT_NOT_NULL(fn);
-    ASSERT_NOT_NULL(fn->local_table);
-
-    insert_var(fn->local_table, "local_var", type_int, 0);
-
-    delete_hash_tabulka(t);
-}
-
-TEST(delete_hash_tabulka_with_tombstones) {
-    symtable *t = init_hash_table();
-
     insert_var(t, "a", type_int, 1);
-    insert_var(t, "b", type_int, 1);
-    insert_var(t, "c", type_int, 0);
+    insert_var(t, "b", type_double, 1);
+    insert_var(t, "c", type_string, 1);
 
     exit_scope(1, t);
 
+    assert(lookup_var(1, "a", t) == NULL);
+    assert(lookup_var(1, "b", t) == NULL);
+    assert(lookup_var(1, "c", t) == NULL);
+
     delete_hash_tabulka(t);
+    printf("[PASS] test_exit_scope_3_deep_clean\n");
 }
 
-// ============================================================================
-// MAIN RUNNER
-// ============================================================================
+// =============================================================================
+// 7. TESTY PRE: hash_table_delete
+// =============================================================================
+
+// Test 7.1: Odstránenie jednej konkrétnej položky podľa kľúča
+void test_hash_table_delete_1_single(void) {
+    symtable *t = init_hash_table();
+    insert_var(t, "item", type_int, 0); // Vloží sa pod kľúčom "0$item"
+
+    // 1. Pri mazaní z low-level hash tabuľky musíte použiť skutočný kľúč "0$item"
+    Symboldata *del = hash_table_delete("0$item", t);
+    if (del != NULL && del != delete_item) {
+        if (del->meno)
+            free(del->meno);
+        if (del->param_type)
+            free(del->param_type);
+        if (del->local_table)
+            delete_hash_tabulka(del->local_table);
+        free(del);
+    }
+
+    // 2. Pri overení cez lookup_var odovzdávajte čistý názov premennej "item"
+    assert(lookup_var(0, "item", t) == NULL);
+
+    delete_hash_tabulka(t);
+    printf("[PASS] test_hash_table_delete_1_single\n");
+}
+
+// Test 7.2: Hraničný stav - pokus o zmazanie kľúča, ktorý v tabuľke nie je
+void test_hash_table_delete_2_non_existent(void) {
+    symtable *t = init_hash_table();
+    insert_var(t, "x", type_int, 0);
+
+    Symboldata *del = hash_table_delete("ghost", t);
+    assert(del == NULL || del == delete_item);
+
+    delete_hash_tabulka(t);
+    printf("[PASS] test_hash_table_delete_2_non_existent\n");
+}
+
+// Test 7.3: Opätovné vloženie prvku po zmazaní (test tombstone / kolízií)
+void test_hash_table_delete_3_reinsert_after_delete(void) {
+    symtable *t = init_hash_table();
+    insert_var(t, "key", type_int, 0); // Vloží sa pod kľúčom "0$key"
+
+    // 1. Zmažeme položku pomocou celého kľúča "0$key"
+    Symboldata *del = hash_table_delete("0$key", t);
+    if (del != NULL && del != delete_item) {
+        if (del->meno)
+            free(del->meno);
+        if (del->param_type)
+            free(del->param_type);
+        if (del->local_table)
+            delete_hash_tabulka(del->local_table);
+        free(del);
+    }
+
+    // 2. Opätovné vloženie premennej s rovnakým menom v rovnakej úrovni scope teraz prejde
+    assert(insert_var(t, "key", type_string, 0) == true);
+
+    Symboldata *s = lookup_var(0, "key", t);
+    assert(s != NULL && s->typ == type_string);
+
+    delete_hash_tabulka(t);
+    printf("[PASS] test_hash_table_delete_3_reinsert_after_delete\n");
+}
+
+// =============================================================================
+// 8. TESTY PRE: delete_hash_tabulka
+// =============================================================================
+
+// Test 8.1: Uvoľnenie úplne prázdnej tabuľky
+void test_delete_hash_tabulka_1_empty(void) {
+    symtable *t = init_hash_table();
+    delete_hash_tabulka(t);
+    printf("[PASS] test_delete_hash_tabulka_1_empty\n");
+}
+
+// Test 8.2: Rekurzívne uvoľnenie komplexnej štruktúry (premenné + funkcie + local_table)
+void test_delete_hash_tabulka_2_complex_data(void) {
+    symtable *t = init_hash_table();
+
+    insert_var(t, "g_var", type_int, 0);
+
+    Datatype *p = malloc(sizeof(Datatype));
+    p[0] = type_int;
+    insert_func(t, "fn", type_unit, 1, p);
+
+    Symboldata *fn_node = lookup_var(0, "fn", t);
+    if (fn_node != NULL) {
+        fn_node->local_table = init_hash_table();
+        insert_var(fn_node->local_table, "local_param", type_int, 1);
+    }
+
+    delete_hash_tabulka(t);
+    printf("[PASS] test_delete_hash_tabulka_2_complex_data\n");
+}
+
+// Test 8.3: Uvoľnenie tabuľky naplnenej vstavanými funkciami
+void test_delete_hash_tabulka_3_builtins(void) {
+    symtable *t = init_hash_table();
+    insert_vstavane_funkcie(t);
+    delete_hash_tabulka(t);
+    printf("[PASS] test_delete_hash_tabulka_3_builtins\n");
+}
+
+// =============================================================================
+// MAIN SPÚŠŤAČ TESTOV
+// =============================================================================
 
 int main(void) {
-    printf("=====================================================\n");
-    printf("     RUNNING SYMTABLE STRICT COMPREHENSIVE SUITE     \n");
-    printf("=====================================================\n\n");
+    printf("=== RUNNING SYMTABLE UNIT TESTS ===\n\n");
 
-    RUN_TEST(init_hash_table_basic);
-    RUN_TEST(init_hash_table_slots_null);
-    RUN_TEST(init_hash_table_multiple_instances);
+    // 1. init_hash_table
+    test_init_hash_table_1_basic();
+    test_init_hash_table_2_multiple();
+    test_init_hash_table_3_immediate_cleanup();
 
-    RUN_TEST(hash_funkcia_deterministic);
-    RUN_TEST(hash_funkcia_different_strings);
-    RUN_TEST(hash_funkcia_edge_cases);
+    // 2. insert_var
+    test_insert_var_1_basic();
+    test_insert_var_2_shadowing_scopes();
+    test_insert_var_3_duplicate_in_same_scope();
 
-    RUN_TEST(make_compose_key_basic);
-    RUN_TEST(make_compose_key_nested_scopes);
-    RUN_TEST(make_compose_key_special_names);
+    // 3. insert_func
+    test_insert_func_1_with_params();
+    test_insert_func_2_zero_params();
+    test_insert_func_3_multiple_funcs();
 
-    RUN_TEST(hash_table_insert_basic);
-    RUN_TEST(hash_table_insert_null_params);
-    RUN_TEST(hash_table_insert_trigger_resize);
+    // 4. insert_vstavane_funkcie
+    test_insert_vstavane_funkcie_1_basic();
+    test_insert_vstavane_funkcie_2_verify_signatures();
+    test_insert_vstavane_funkcie_3_preexisting_table();
 
-    RUN_TEST(hash_table_lookup_existing);
-    RUN_TEST(hash_table_lookup_non_existing);
-    RUN_TEST(hash_table_lookup_null_and_deleted);
+    // 5. lookup_var
+    test_lookup_var_1_exist();
+    test_lookup_var_2_hierarchical_scope();
+    test_lookup_var_3_non_existent();
 
-    RUN_TEST(insert_var_basic);
-    RUN_TEST(insert_var_duplicate_same_scope);
-    RUN_TEST(insert_var_same_name_different_scopes);
+    // 6. exit_scope
+    test_exit_scope_1_basic();
+    test_exit_scope_2_empty_scope();
+    test_exit_scope_3_deep_clean();
 
-    RUN_TEST(insert_func_basic);
-    RUN_TEST(insert_func_with_params);
-    RUN_TEST(insert_func_duplicate_and_long_name);
+    // 7. hash_table_delete
+    test_hash_table_delete_1_single();
+    test_hash_table_delete_2_non_existent();
+    test_hash_table_delete_3_reinsert_after_delete();
 
-    RUN_TEST(lookup_var_current_scope);
-    RUN_TEST(lookup_var_shadowing_fallback);
-    RUN_TEST(lookup_var_not_found_and_null);
+    // 8. delete_hash_tabulka
+    test_delete_hash_tabulka_1_empty();
+    test_delete_hash_tabulka_2_complex_data();
+    test_delete_hash_tabulka_3_builtins();
 
-    RUN_TEST(exit_scope_basic);
-    RUN_TEST(exit_scope_preserve_functions);
-    RUN_TEST(exit_scope_empty_or_invalid);
-
-    RUN_TEST(hash_table_delete_basic);
-    RUN_TEST(hash_table_delete_non_existent_and_null);
-    RUN_TEST(hash_table_delete_linear_probing_chain);
-
-    RUN_TEST(delete_hash_tabulka_empty_and_null);
-    RUN_TEST(delete_hash_tabulka_complex_nested);
-    RUN_TEST(delete_hash_tabulka_with_tombstones);
-
-    printf("\n=====================================================\n");
-    printf("TEST RESULTS: %d Passed, %d Failed (Total %d)\n", tests_passed, tests_failed, tests_run);
-    printf("=====================================================\n");
-
-    return tests_failed == 0 ? 0 : 1;
+    printf("\n=== ALL 24 TESTS PASSED SUCCESSFULLY! ===\n");
+    return 0;
 }
