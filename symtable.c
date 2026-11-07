@@ -1,3 +1,8 @@
+/* symtable + hastable
+    tvorca : Filip Šimulčík
+    xlogin: xsimulf00
+*/
+
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -309,24 +314,30 @@ void exit_scope(int scope_level, symtable *t) {
 }
 
 // zmazanie daneho synbolu bud na indexe alebo dalej
-Symboldata *hash_table_delete(char *s, symtable *t) {
+bool hash_table_delete(char *s, symtable *t) {
     if (s == NULL || t == NULL)
-        return NULL;
+        return false;
     unsigned int hash_hodnota = hash_funkcia(s);
     int index = hash_hodnota % t->velkost_tabulky;
     for (int i = 0; i < t->velkost_tabulky; i++) {
         int try = (i + index) % t->velkost_tabulky;
         if (t->hash_table[try] == NULL) {
-            return NULL;
+            return false;
         }
+        Symboldata *tmp = t->hash_table[try];
         if (t->hash_table[try] != NULL && t->hash_table[try] != delete_item && !(strcmp(t->hash_table[try]->meno, s))) {
-            Symboldata *tmp = t->hash_table[try];
             t->hash_table[try] = delete_item;
             t->pocet_synbolov = t->pocet_synbolov - 1;
-            return tmp;
+            if (tmp->is_function && tmp->local_table != NULL) {
+                delete_hash_tabulka(tmp->local_table);
+            }
+            free(tmp->param_type);
+            free(tmp->meno);
+            free(tmp);
+            return true;
         }
     }
-    return NULL;
+    return false;
 }
 
 // zmaze celu tabulku

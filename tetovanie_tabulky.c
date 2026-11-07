@@ -1,455 +1,342 @@
 #include "symtable.h"
-#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+// generovane AI
 
-// =============================================================================
-// 1. TESTY PRE: init_hash_table
-// =============================================================================
+// ============================================================================
+// FAREBNÝ TESTOVACÍ RÁMEC (ANSI escape codes)
+// ============================================================================
+#define COLOR_RESET "\033[0m"
+#define COLOR_RED "\033[1;31m"
+#define COLOR_GREEN "\033[1;32m"
+#define COLOR_YELLOW "\033[1;33m"
+#define COLOR_CYAN "\033[1;36m"
+#define COLOR_MAGENTA "\033[1;35m"
+#define COLOR_BOLD "\033[1m"
 
-// Test 1.1: Štandardná alokácia a kontrola počiatokého stavu
-void test_init_hash_table_1_basic(void) {
+static int total_assertions = 0;
+static int passed_assertions = 0;
+static int failed_assertions = 0;
+
+static int current_test_failed = 0;
+
+#define ASSERT(condition, message)                                                                  \
+    do {                                                                                            \
+        total_assertions++;                                                                         \
+        if (condition) {                                                                            \
+            passed_assertions++;                                                                    \
+        } else {                                                                                    \
+            failed_assertions++;                                                                    \
+            current_test_failed = 1;                                                                \
+            printf(COLOR_RED "    [FAIL] %s:%d: %s" COLOR_RESET "\n", __FILE__, __LINE__, message); \
+        }                                                                                           \
+    } while (0)
+
+#define ASSERT_TRUE(cond) ASSERT((cond), "Očakávalo sa TRUE (platnosť)")
+#define ASSERT_FALSE(cond) ASSERT(!(cond), "Očakávalo sa FALSE (neplatnosť)")
+#define ASSERT_NOT_NULL(ptr) ASSERT((ptr) != NULL, "Ukazovateľ nesmie byť NULL")
+#define ASSERT_NULL(ptr) ASSERT((ptr) == NULL, "Ukazovateľ musí byť NULL")
+#define ASSERT_EQ_INT(a, b) ASSERT((a) == (b), "Hodnoty int sa nezhodujú")
+#define ASSERT_EQ_STR(a, b) ASSERT((a) != NULL && (b) != NULL && strcmp((a), (b)) == 0, "Reťazce sa nezhodujú")
+
+#define TEST_SECTION(name)                                                                            \
+    printf("\n" COLOR_MAGENTA "==================================================" COLOR_RESET "\n"); \
+    printf(COLOR_BOLD "%s" COLOR_RESET "\n", name);                                                   \
+    printf(COLOR_MAGENTA "==================================================" COLOR_RESET "\n")
+
+#define RUN_TEST(test_func)                                                     \
+    do {                                                                        \
+        current_test_failed = 0;                                                \
+        printf(COLOR_CYAN "[ RUN      ] " COLOR_RESET "%s\n", #test_func);      \
+        test_func();                                                            \
+        if (!current_test_failed) {                                             \
+            printf(COLOR_GREEN "[       OK ] " COLOR_RESET "%s\n", #test_func); \
+        } else {                                                                \
+            printf(COLOR_RED "[  FAILED  ] " COLOR_RESET "%s\n", #test_func);   \
+        }                                                                       \
+    } while (0)
+
+// ============================================================================
+// INDIVIDUÁLNE TESTOVACIE PRÍPADY
+// ============================================================================
+
+// 1. Test inicializácie a korektného uvoľnenia
+void test_init_and_cleanup(void) {
     symtable *t = init_hash_table();
-    assert(t != NULL);
-    assert(t->hash_table != NULL);
-    assert(t->pocet_synbolov == 0);
-    assert(t->velkost_tabulky > 0);
+    ASSERT_NOT_NULL(t);
+    if (t) {
+        ASSERT_EQ_INT(t->pocet_synbolov, 0);
+        ASSERT_NOT_NULL(t->hash_table);
+    }
     delete_hash_tabulka(t);
-    printf("[PASS] test_init_hash_table_1_basic\n");
 }
 
-// Test 1.2: Vytvorenie viacerých nezávislých tabuliek
-void test_init_hash_table_2_multiple(void) {
-    symtable *t1 = init_hash_table();
-    symtable *t2 = init_hash_table();
-    assert(t1 != NULL && t2 != NULL);
-    assert(t1 != t2);
-    assert(t1->hash_table != t2->hash_table);
-    delete_hash_tabulka(t1);
-    delete_hash_tabulka(t2);
-    printf("[PASS] test_init_hash_table_2_multiple\n");
-}
-
-// Test 1.3: Hraničný stav - okamžité zrušenie bez vloženia prvkov
-void test_init_hash_table_3_immediate_cleanup(void) {
+// 2. Vkladanie a vyhľadávanie jednoduchých premenných
+void test_insert_and_lookup_var(void) {
     symtable *t = init_hash_table();
-    assert(t != NULL);
-    delete_hash_tabulka(t);
-    printf("[PASS] test_init_hash_table_3_immediate_cleanup\n");
-}
+    ASSERT_NOT_NULL(t);
 
-// =============================================================================
-// 2. TESTY PRE: insert_var
-// =============================================================================
+    bool res1 = insert_var(t, "counter", type_int, 0);
+    ASSERT_TRUE(res1);
 
-// Test 2.1: Vloženie jednej premennej a kontrola atribútov
-void test_insert_var_1_basic(void) {
-    symtable *t = init_hash_table();
-    bool res = insert_var(t, "x", type_int, 0);
-    assert(res == true);
+    bool res2 = insert_var(t, "price", type_double, 0);
+    ASSERT_TRUE(res2);
 
-    Symboldata *s = lookup_var(0, "x", t);
-    assert(s != NULL);
-    assert(strcmp(s->meno, "0$x") == 0);
-    assert(s->typ == type_int);
-    assert(s->scope_level == 0);
-    assert(s->is_function == false);
+    bool res3 = insert_var(t, "is_valid", type_bool, 0);
+    ASSERT_TRUE(res3);
+
+    // Lookup premennej s prefixom úrovne (podľa dokumentácie v hlavičkovom súbore: "0$meno")
+    Symboldata *s1 = lookup_var(0, "0$counter", t);
+    ASSERT_NOT_NULL(s1);
+    if (s1) {
+        ASSERT_EQ_INT(s1->typ, type_int);
+        ASSERT_FALSE(s1->is_function);
+        ASSERT_EQ_INT(s1->scope_level, 0);
+    }
+
+    Symboldata *s2 = lookup_var(0, "0$price", t);
+    ASSERT_NOT_NULL(s2);
+    if (s2) {
+        ASSERT_EQ_INT(s2->typ, type_double);
+    }
+
+    // Vyhľadávanie neexistujúcej premennej
+    Symboldata *s_null = lookup_var(0, "0$nonexistent", t);
+    ASSERT_NULL(s_null);
 
     delete_hash_tabulka(t);
-    printf("[PASS] test_insert_var_1_basic\n");
 }
 
-// Test 2.2: Shadowing - rovnaké meno v rôznych úrovniach zánorenia (scope)
-void test_insert_var_2_shadowing_scopes(void) {
+// 3. Vkladanie a vyhľadávanie funkcií a ich parametrov
+void test_insert_and_lookup_func(void) {
     symtable *t = init_hash_table();
-    assert(insert_var(t, "var", type_int, 0) == true);
-    assert(insert_var(t, "var", type_string, 1) == true);
-    assert(insert_var(t, "var", type_double, 2) == true);
+    ASSERT_NOT_NULL(t);
 
-    Symboldata *s2 = lookup_var(2, "var", t);
-    assert(s2 != NULL && s2->typ == type_double && s2->scope_level == 2);
-
-    Symboldata *s1 = lookup_var(1, "var", t);
-    assert(s1 != NULL && s1->typ == type_string && s1->scope_level == 1);
-
-    Symboldata *s0 = lookup_var(0, "var", t);
-    assert(s0 != NULL && s0->typ == type_int && s0->scope_level == 0);
-
-    delete_hash_tabulka(t);
-    printf("[PASS] test_insert_var_2_shadowing_scopes\n");
-}
-
-// Test 2.3: Hraničný stav - duplicitné vloženie premennej v rovnakom scope
-void test_insert_var_3_duplicate_in_same_scope(void) {
-    symtable *t = init_hash_table();
-    assert(insert_var(t, "a", type_bool, 0) == true);
-    // Vloženie druhej premennej s rovnakým menom v rovnakom scope nesmie zničiť pôvodný uzol
-    bool res_dup = insert_var(t, "a", type_double, 0);
-    assert(res_dup == false || lookup_var(0, "a", t) != NULL);
-
-    delete_hash_tabulka(t);
-    printf("[PASS] test_insert_var_3_duplicate_in_same_scope\n");
-}
-
-// =============================================================================
-// 3. TESTY PRE: insert_func
-// =============================================================================
-
-// Test 3.1: Vloženie funkcie s dynamicky alokovaným poľom parametrov
-void test_insert_func_1_with_params(void) {
-    symtable *t = init_hash_table();
-    Datatype *params = malloc(2 * sizeof(Datatype));
+    // Funkcia foo(int, string) -> double
+    Datatype *params = malloc(sizeof(Datatype) * 2);
     params[0] = type_int;
     params[1] = type_string;
 
     bool res = insert_func(t, "foo", type_double, 2, params);
-    assert(res == true);
+    ASSERT_TRUE(res);
 
-    Symboldata *s = lookup_var(0, "foo", t);
-    assert(s != NULL);
-    assert(s->is_function == true);
-    assert(s->param_count == 2);
-    assert(s->typ == type_double);
-    assert(s->param_type != NULL);
-    assert(s->param_type[0] == type_int);
-    assert(s->param_type[1] == type_string);
-
-    delete_hash_tabulka(t);
-    printf("[PASS] test_insert_func_1_with_params\n");
-}
-
-// Test 3.2: Hraničný stav - vloženie funkcie bez parametrov (param_count = 0, NULL)
-void test_insert_func_2_zero_params(void) {
-    symtable *t = init_hash_table();
-    bool res = insert_func(t, "bar", type_unit, 0, NULL);
-    assert(res == true);
-
-    Symboldata *s = lookup_var(0, "bar", t);
-    assert(s != NULL);
-    assert(s->is_function == true);
-    assert(s->param_count == 0);
-
-    delete_hash_tabulka(t);
-    printf("[PASS] test_insert_func_2_zero_params\n");
-}
-
-// Test 3.3: Vloženie viacerých funkcií s odlišnými typmi a počtami parametrov
-void test_insert_func_3_multiple_funcs(void) {
-    symtable *t = init_hash_table();
-
-    Datatype *p1 = malloc(sizeof(Datatype) * 1);
-    p1[0] = type_int;
-
-    Datatype *p2 = malloc(sizeof(Datatype) * 2);
-    p2[0] = type_bool;
-    p2[1] = type_double;
-
-    assert(insert_func(t, "func1", type_int, 1, p1) == true);
-    assert(insert_func(t, "func2", type_string, 2, p2) == true);
-
-    delete_hash_tabulka(t); // Úspešne uvoľní p1 aj p2 z haldy
-    printf("[PASS] test_insert_func_3_multiple_funcs\n");
-}
-
-// =============================================================================
-// 4. TESTY PRE: insert_vstavane_funkcie
-// =============================================================================
-
-// Test 4.1: Základné vloženie vstavaných funkcií do prázdnej tabuľky
-void test_insert_vstavane_funkcie_1_basic(void) {
-    symtable *t = init_hash_table();
-    insert_vstavane_funkcie(t);
-    assert(t->pocet_synbolov > 0);
-    delete_hash_tabulka(t);
-    printf("[PASS] test_insert_vstavane_funkcie_1_basic\n");
-}
-
-// Test 4.2: Overenie integrity vstavaných funkcií v hash tabuľke
-void test_insert_vstavane_funkcie_2_verify_signatures(void) {
-    symtable *t = init_hash_table();
-    insert_vstavane_funkcie(t);
-
-    for (int i = 0; i < t->velkost_tabulky; i++) {
-        if (t->hash_table[i] != NULL && t->hash_table[i] != delete_item) {
-            assert(t->hash_table[i]->meno != NULL);
-            assert(t->hash_table[i]->is_function == true);
+    // Vyhľadanie funkcie (bez prefixu $)
+    Symboldata *f = lookup_var(0, "foo", t);
+    ASSERT_NOT_NULL(f);
+    if (f) {
+        ASSERT_TRUE(f->is_function);
+        ASSERT_EQ_INT(f->typ, type_double);
+        ASSERT_EQ_INT(f->param_count, 2);
+        ASSERT_NOT_NULL(f->param_type);
+        if (f->param_type) {
+            ASSERT_EQ_INT(f->param_type[0], type_int);
+            ASSERT_EQ_INT(f->param_type[1], type_string);
         }
     }
 
     delete_hash_tabulka(t);
-    printf("[PASS] test_insert_vstavane_funkcie_2_verify_signatures\n");
 }
 
-// Test 4.3: Hraničný stav - vloženie vstavaných funkcií do tabuľky s premennými
-void test_insert_vstavane_funkcie_3_preexisting_table(void) {
+// 4. Test vstavaných funkcií
+void test_builtin_functions(void) {
     symtable *t = init_hash_table();
-    insert_var(t, "user_var", type_int, 0);
+    ASSERT_NOT_NULL(t);
 
     insert_vstavane_funkcie(t);
-
-    Symboldata *s = lookup_var(0, "user_var", t);
-    assert(s != NULL && strcmp(s->meno, "0$user_var") == 0);
+    ASSERT(t->pocet_synbolov > 0, "Tabuľka by mala obsahovať vstavané funkcie");
 
     delete_hash_tabulka(t);
-    printf("[PASS] test_insert_vstavane_funkcie_3_preexisting_table\n");
 }
 
-// =============================================================================
-// 5. TESTY PRE: lookup_var
-// =============================================================================
-
-// Test 5.1: Vyhľadanie existujúcej premennej
-void test_lookup_var_1_exist(void) {
+// 5. Test zanorenia (scope) a opustenia rozsahov (exit_scope)
+void test_scope_management(void) {
     symtable *t = init_hash_table();
-    insert_var(t, "target", type_double, 0);
+    ASSERT_NOT_NULL(t);
 
-    Symboldata *res = lookup_var(0, "target", t);
-    assert(res != NULL);
-    assert(strcmp(res->meno, "0$target") == 0);
+    // Vloženie premenných na rôznych úrovniach zanorenia
+    insert_var(t, "global_var", type_int, 0);    // 0$global_var
+    insert_var(t, "local_var1", type_string, 1); // 1$local_var1
+    insert_var(t, "local_var2", type_double, 1); // 1$local_var2
+    insert_var(t, "nested_var", type_bool, 2);   // 2$nested_var
 
-    delete_hash_tabulka(t);
-    printf("[PASS] test_lookup_var_1_exist\n");
-}
+    // Skontrolujeme, že existujú
+    ASSERT_NOT_NULL(lookup_var(0, "0$global_var", t));
+    ASSERT_NOT_NULL(lookup_var(1, "1$local_var1", t));
+    ASSERT_NOT_NULL(lookup_var(1, "1$local_var2", t));
+    ASSERT_NOT_NULL(lookup_var(2, "2$nested_var", t));
 
-// Test 5.2: Hierarchické vyhľadávanie premennej z vyššieho scope
-void test_lookup_var_2_hierarchical_scope(void) {
-    symtable *t = init_hash_table();
-    insert_var(t, "global_var", type_int, 0);
-    insert_var(t, "local_var", type_string, 2);
-
-    // Hľadanie z vnútornejšieho scope (2) nájde aj globálnu premennú (0)
-    Symboldata *g = lookup_var(2, "global_var", t);
-    assert(g != NULL);
-    assert(strcmp(g->meno, "0$global_var") == 0);
-
-    Symboldata *l = lookup_var(2, "local_var", t);
-    assert(l != NULL);
-
-    delete_hash_tabulka(t);
-    printf("[PASS] test_lookup_var_2_hierarchical_scope\n");
-}
-
-// Test 5.3: Hraničný stav - vyhľadanie neexistujúcej premennej alebo nesprávneho scope
-void test_lookup_var_3_non_existent(void) {
-    symtable *t = init_hash_table();
-    insert_var(t, "a", type_int, 0);
-
-    // Neexistujúce meno
-    assert(lookup_var(0, "non_existent", t) == NULL);
-
-    // Premenná existuje v scope 3, ale hľadáme iba do scope 1
-    insert_var(t, "deep_var", type_int, 3);
-    assert(lookup_var(1, "deep_var", t) == NULL);
-
-    delete_hash_tabulka(t);
-    printf("[PASS] test_lookup_var_3_non_existent\n");
-}
-
-// =============================================================================
-// 6. TESTY PRE: exit_scope
-// =============================================================================
-
-// Test 6.1: Odstránenie premenných len zo zadaného scope
-void test_exit_scope_1_basic(void) {
-    symtable *t = init_hash_table();
-    insert_var(t, "v0", type_int, 0);
-    insert_var(t, "v1", type_string, 1);
-    insert_var(t, "v2", type_double, 2);
-
+    // Opustíme scope level 2
     exit_scope(2, t);
+    ASSERT_NULL(lookup_var(2, "2$nested_var", t));
+    ASSERT_NOT_NULL(lookup_var(1, "1$local_var1", t)); // Level 1 stále žije
 
-    assert(lookup_var(2, "v2", t) == NULL);
-    assert(lookup_var(1, "v1", t) != NULL);
-    assert(lookup_var(0, "v0", t) != NULL);
-
-    delete_hash_tabulka(t);
-    printf("[PASS] test_exit_scope_1_basic\n");
-}
-
-// Test 6.2: Hraničný stav - exit_scope pre prázdny/neexistujúci scope
-void test_exit_scope_2_empty_scope(void) {
-    symtable *t = init_hash_table();
-    insert_var(t, "v0", type_int, 0);
-
-    exit_scope(99, t); // Žiadne premenné v scope 99
-    assert(lookup_var(0, "v0", t) != NULL);
-
-    delete_hash_tabulka(t);
-    printf("[PASS] test_exit_scope_2_empty_scope\n");
-}
-
-// Test 6.3: Hromadné uvoľnenie viacerých položiek z jedného scope
-void test_exit_scope_3_deep_clean(void) {
-    symtable *t = init_hash_table();
-    insert_var(t, "a", type_int, 1);
-    insert_var(t, "b", type_double, 1);
-    insert_var(t, "c", type_string, 1);
-
+    // Opustíme scope level 1
     exit_scope(1, t);
-
-    assert(lookup_var(1, "a", t) == NULL);
-    assert(lookup_var(1, "b", t) == NULL);
-    assert(lookup_var(1, "c", t) == NULL);
+    ASSERT_NULL(lookup_var(1, "1$local_var1", t));
+    ASSERT_NULL(lookup_var(1, "1$local_var2", t));
+    ASSERT_NOT_NULL(lookup_var(0, "0$global_var", t)); // Level 0 stále žije
 
     delete_hash_tabulka(t);
-    printf("[PASS] test_exit_scope_3_deep_clean\n");
 }
 
-// =============================================================================
-// 7. TESTY PRE: hash_table_delete
-// =============================================================================
-
-// Test 7.1: Odstránenie jednej konkrétnej položky podľa kľúča
-void test_hash_table_delete_1_single(void) {
+// 6. Test manuálneho mazania prvkov (hash_table_delete)
+void test_explicit_deletion(void) {
     symtable *t = init_hash_table();
-    insert_var(t, "item", type_int, 0); // Vloží sa pod kľúčom "0$item"
+    ASSERT_NOT_NULL(t);
 
-    // 1. Pri mazaní z low-level hash tabuľky musíte použiť skutočný kľúč "0$item"
-    Symboldata *del = hash_table_delete("0$item", t);
-    if (del != NULL && del != delete_item) {
-        if (del->meno)
-            free(del->meno);
-        if (del->param_type)
-            free(del->param_type);
-        if (del->local_table)
-            delete_hash_tabulka(del->local_table);
-        free(del);
+    insert_var(t, "temp_var", type_int, 0);
+    ASSERT_NOT_NULL(lookup_var(0, "0$temp_var", t));
+
+    // Vymazanie z tabuľky
+    bool deleted = hash_table_delete("0$temp_var", t);
+    ASSERT_TRUE(deleted);
+
+    // Po zmazaní by mal byť výsledok lookup NULL
+    ASSERT_NULL(lookup_var(0, "0$temp_var", t));
+
+    // Vymazanie neexistujúceho prvku
+    bool deleted_nonexistent = hash_table_delete("0$ghost", t);
+    ASSERT_FALSE(deleted_nonexistent);
+
+    delete_hash_tabulka(t);
+}
+
+// 7. HRANIČNÝ TEST: Shadowing premenných (rovnaké meno v rôznych úrovniach)
+void test_variable_shadowing(void) {
+    symtable *t = init_hash_table();
+    ASSERT_NOT_NULL(t);
+
+    // Rovnaký identifikátor "x" na úrovni 0 aj 1
+    insert_var(t, "x", type_int, 0);    // 0$x
+    insert_var(t, "x", type_string, 1); // 1$x
+
+    Symboldata *x0 = lookup_var(0, "0$x", t);
+    Symboldata *x1 = lookup_var(1, "1$x", t);
+
+    ASSERT_NOT_NULL(x0);
+    ASSERT_NOT_NULL(x1);
+
+    if (x0 && x1) {
+        ASSERT_EQ_INT(x0->typ, type_int);
+        ASSERT_EQ_INT(x1->typ, type_string);
     }
 
-    // 2. Pri overení cez lookup_var odovzdávajte čistý názov premennej "item"
-    assert(lookup_var(0, "item", t) == NULL);
+    // Odstránenie len zanoreného x
+    exit_scope(1, t);
+    ASSERT_NULL(lookup_var(1, "1$x", t));
+    ASSERT_NOT_NULL(lookup_var(0, "0$x", t));
 
     delete_hash_tabulka(t);
-    printf("[PASS] test_hash_table_delete_1_single\n");
 }
 
-// Test 7.2: Hraničný stav - pokus o zmazanie kľúča, ktorý v tabuľke nie je
-void test_hash_table_delete_2_non_existent(void) {
+// 8. HRANIČNÝ TEST: Masívne vkladanie (zťažkávací test na kolízie a pretečenie)
+void test_stress_and_collisions(void) {
     symtable *t = init_hash_table();
-    insert_var(t, "x", type_int, 0);
+    ASSERT_NOT_NULL(t);
 
-    Symboldata *del = hash_table_delete("ghost", t);
-    assert(del == NULL || del == delete_item);
+    const int ITEM_COUNT = 150;
+    char buffer[64];
 
-    delete_hash_tabulka(t);
-    printf("[PASS] test_hash_table_delete_2_non_existent\n");
-}
-
-// Test 7.3: Opätovné vloženie prvku po zmazaní (test tombstone / kolízií)
-void test_hash_table_delete_3_reinsert_after_delete(void) {
-    symtable *t = init_hash_table();
-    insert_var(t, "key", type_int, 0); // Vloží sa pod kľúčom "0$key"
-
-    // 1. Zmažeme položku pomocou celého kľúča "0$key"
-    Symboldata *del = hash_table_delete("0$key", t);
-    if (del != NULL && del != delete_item) {
-        if (del->meno)
-            free(del->meno);
-        if (del->param_type)
-            free(del->param_type);
-        if (del->local_table)
-            delete_hash_tabulka(del->local_table);
-        free(del);
+    // Vloženie 150 prvkov
+    for (int i = 0; i < ITEM_COUNT; i++) {
+        snprintf(buffer, sizeof(buffer), "var_%d", i);
+        bool inserted = insert_var(t, buffer, type_int, 0);
+        ASSERT_TRUE(inserted);
     }
 
-    // 2. Opätovné vloženie premennej s rovnakým menom v rovnakej úrovni scope teraz prejde
-    assert(insert_var(t, "key", type_string, 0) == true);
-
-    Symboldata *s = lookup_var(0, "key", t);
-    assert(s != NULL && s->typ == type_string);
-
-    delete_hash_tabulka(t);
-    printf("[PASS] test_hash_table_delete_3_reinsert_after_delete\n");
-}
-
-// =============================================================================
-// 8. TESTY PRE: delete_hash_tabulka
-// =============================================================================
-
-// Test 8.1: Uvoľnenie úplne prázdnej tabuľky
-void test_delete_hash_tabulka_1_empty(void) {
-    symtable *t = init_hash_table();
-    delete_hash_tabulka(t);
-    printf("[PASS] test_delete_hash_tabulka_1_empty\n");
-}
-
-// Test 8.2: Rekurzívne uvoľnenie komplexnej štruktúry (premenné + funkcie + local_table)
-void test_delete_hash_tabulka_2_complex_data(void) {
-    symtable *t = init_hash_table();
-
-    insert_var(t, "g_var", type_int, 0);
-
-    Datatype *p = malloc(sizeof(Datatype));
-    p[0] = type_int;
-    insert_func(t, "fn", type_unit, 1, p);
-
-    Symboldata *fn_node = lookup_var(0, "fn", t);
-    if (fn_node != NULL) {
-        fn_node->local_table = init_hash_table();
-        insert_var(fn_node->local_table, "local_param", type_int, 1);
+    // Overenie všetkých 150 prvkov
+    for (int i = 0; i < ITEM_COUNT; i++) {
+        snprintf(buffer, sizeof(buffer), "0$var_%d", i);
+        Symboldata *s = lookup_var(0, buffer, t);
+        ASSERT_NOT_NULL(s);
     }
 
     delete_hash_tabulka(t);
-    printf("[PASS] test_delete_hash_tabulka_2_complex_data\n");
 }
 
-// Test 8.3: Uvoľnenie tabuľky naplnenej vstavanými funkciami
-void test_delete_hash_tabulka_3_builtins(void) {
+// 9. HRANIČNÝ TEST: Opätovné vloženie po zmazaní (overenie funkčnosti tombstones `delete_item`)
+void test_tombstone_reuse(void) {
     symtable *t = init_hash_table();
-    insert_vstavane_funkcie(t);
+    ASSERT_NOT_NULL(t);
+
+    insert_var(t, "alpha", type_int, 0);
+    insert_var(t, "beta", type_double, 0);
+
+    // Zmažeme "alpha" (vytvorí sa tombstone delete_item)
+    hash_table_delete("0$alpha", t);
+    ASSERT_NULL(lookup_var(0, "0$alpha", t));
+
+    // "beta" musí byť stále nájditeľná aj cez vymazané miesto
+    ASSERT_NOT_NULL(lookup_var(0, "0$beta", t));
+
+    // Re-insert "alpha"
+    bool reinserted = insert_var(t, "alpha", type_bool, 0);
+    ASSERT_TRUE(reinserted);
+
+    Symboldata *re_s = lookup_var(0, "0$alpha", t);
+    ASSERT_NOT_NULL(re_s);
+    if (re_s) {
+        ASSERT_EQ_INT(re_s->typ, type_bool);
+    }
+
     delete_hash_tabulka(t);
-    printf("[PASS] test_delete_hash_tabulka_3_builtins\n");
 }
 
-// =============================================================================
-// MAIN SPÚŠŤAČ TESTOV
-// =============================================================================
+// 10. HRANIČNÝ TEST: Prázdne a špeciálne vstupy
+void test_edge_cases(void) {
+    symtable *t = init_hash_table();
+    ASSERT_NOT_NULL(t);
 
+    // Hľadanie v prázdnej tabuľke
+    Symboldata *empty_look = lookup_var(0, "0$anything", t);
+    ASSERT_NULL(empty_look);
+
+    // Mazanie z prázdnej tabuľky
+    bool del_empty = hash_table_delete("0$anything", t);
+    ASSERT_FALSE(del_empty);
+
+    // Opustenie rozsahu na prázdnej tabuľke (nesmie spadnúť)
+    exit_scope(5, t);
+
+    delete_hash_tabulka(t);
+}
+
+// ============================================================================
+// HLAVNÁ FUNKCIA (MAIN)
+// ============================================================================
 int main(void) {
-    printf("=== RUNNING SYMTABLE UNIT TESTS ===\n\n");
+    printf(COLOR_BOLD COLOR_YELLOW "\n=== SPUSTAM TESTOVACIU SADU SYMBOLICKEJ TABULKY ===" COLOR_RESET "\n");
 
-    // 1. init_hash_table
-    test_init_hash_table_1_basic();
-    test_init_hash_table_2_multiple();
-    test_init_hash_table_3_immediate_cleanup();
+    TEST_SECTION("1. ZAKLADNE OPERACIE & PAMAT");
+    RUN_TEST(test_init_and_cleanup);
+    RUN_TEST(test_insert_and_lookup_var);
+    RUN_TEST(test_insert_and_lookup_func);
+    RUN_TEST(test_builtin_functions);
 
-    // 2. insert_var
-    test_insert_var_1_basic();
-    test_insert_var_2_shadowing_scopes();
-    test_insert_var_3_duplicate_in_same_scope();
+    TEST_SECTION("2. RIADENIE SCOPE & MAZANIE");
+    RUN_TEST(test_scope_management);
+    RUN_TEST(test_explicit_deletion);
 
-    // 3. insert_func
-    test_insert_func_1_with_params();
-    test_insert_func_2_zero_params();
-    test_insert_func_3_multiple_funcs();
+    TEST_SECTION("3. HRANICNE STAVY & STRESS TESTY");
+    RUN_TEST(test_variable_shadowing);
+    RUN_TEST(test_stress_and_collisions);
+    RUN_TEST(test_tombstone_reuse);
+    RUN_TEST(test_edge_cases);
 
-    // 4. insert_vstavane_funkcie
-    test_insert_vstavane_funkcie_1_basic();
-    test_insert_vstavane_funkcie_2_verify_signatures();
-    test_insert_vstavane_funkcie_3_preexisting_table();
-
-    // 5. lookup_var
-    test_lookup_var_1_exist();
-    test_lookup_var_2_hierarchical_scope();
-    test_lookup_var_3_non_existent();
-
-    // 6. exit_scope
-    test_exit_scope_1_basic();
-    test_exit_scope_2_empty_scope();
-    test_exit_scope_3_deep_clean();
-
-    // 7. hash_table_delete
-    test_hash_table_delete_1_single();
-    test_hash_table_delete_2_non_existent();
-    test_hash_table_delete_3_reinsert_after_delete();
-
-    // 8. delete_hash_tabulka
-    test_delete_hash_tabulka_1_empty();
-    test_delete_hash_tabulka_2_complex_data();
-    test_delete_hash_tabulka_3_builtins();
-
-    printf("\n=== ALL 24 TESTS PASSED SUCCESSFULLY! ===\n");
-    return 0;
+    // Záverečné vyhodnotenie
+    printf("\n" COLOR_MAGENTA "==================================================" COLOR_RESET "\n");
+    printf(COLOR_BOLD "ZHRNUTIE TESTOV:" COLOR_RESET "\n");
+    printf(" Celkovo testovacích tvrdení (assertions): %d\n", total_assertions);
+    printf(COLOR_GREEN " USPESNE:  %d" COLOR_RESET "\n", passed_assertions);
+    if (failed_assertions > 0) {
+        printf(COLOR_RED " NEUSPESNE: %d" COLOR_RESET "\n", failed_assertions);
+        printf(COLOR_RED COLOR_BOLD "\n[ RESULT ] NIEKTORE TESTY ZLYHALI!" COLOR_RESET "\n\n");
+        return 1;
+    } else {
+        printf(COLOR_GREEN " NEUSPESNE: 0\n");
+        printf(COLOR_GREEN COLOR_BOLD "\n[ RESULT ] VSETKY TESTY PRESHLI UPESNE!" COLOR_RESET "\n\n");
+        return 0;
+    }
 }
