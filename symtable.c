@@ -23,7 +23,7 @@ typedef struct {
 
 } Symboldata;
 
-typedef struct {
+typedef struct symtable {
     Symboldata **hash_table;
     int velkost_tabulky;
     int pocet_synbolov;
@@ -89,7 +89,7 @@ symtable *init_hash_table() {
 }
 // vlozenie prvku do tabulky bud na dany index alebo na prve miesto za nim
 bool hash_table_insert(Symboldata *s, symtable *t) {
-    if (s == NULL || t == NULL) {
+    if (s == NULL || t == NULL || s->meno == NULL) {
         return false;
     }
     if (t->pocet_synbolov == t->velkost_tabulky) {
@@ -97,7 +97,6 @@ bool hash_table_insert(Symboldata *s, symtable *t) {
             return false;
         }
     }
-
     unsigned int hash_hodnota = hash_funkcia(s->meno);
     int index = hash_hodnota % t->velkost_tabulky;
     for (int i = 0; i < t->velkost_tabulky; i++) {
@@ -108,46 +107,6 @@ bool hash_table_insert(Symboldata *s, symtable *t) {
             return true;
         }
     }
-    return false;
-}
-
-// vlozenie pramennej do tabulky
-bool insert_var(symtable *t, char *meno, Datatype typ) {
-    Symboldata *s = malloc(sizeof(Symboldata));
-    if (s == NULL) {
-        return false;
-    }
-    s->meno = meno;
-    s->typ = typ;
-    s->is_function = false;
-    s->param_count = 0;
-    s->local_table = NULL;
-    s->param_type = NULL;
-    if (hash_table_insert(s, t)) {
-        return true;
-    }
-    return false;
-}
-bool insert_func(symtable *t, char *meno, Datatype return_typ, int param_count, Datatype *param_type) {
-    Symboldata *s = malloc(sizeof(Symboldata));
-    if (s == NULL) {
-        return false;
-    }
-    s->meno = meno;
-    s->typ = return_typ;
-    s->is_function = true;
-    s->param_count = param_count;
-    s->local_table = init_hash_table();
-    if (s->local_table == NULL) {
-        free(s);
-        return false;
-    }
-    s->param_type = param_type;
-    if (hash_table_insert(s, t)) {
-        return true;
-    }
-    delete_hash_tabulka(s->local_table);
-    free(s);
     return false;
 }
 
@@ -169,6 +128,127 @@ Symboldata *hash_table_lookup(char *s, symtable *t) {
     }
     return NULL;
 }
+
+char *make_compose_key(int scope_level, char *meno) {
+
+    int len = snprintf(NULL, 0, "%d$%s", scope_level, meno); // funkcia ktora pise do pamati na nejake dane miesto( ak je tam null nezapise nikam)
+    char *key = malloc(len + 1);
+    if (key == NULL) {
+        return NULL;
+    }
+    snprintf(key, len + 1, "%d$%s", scope_level, meno);
+    return key;
+}
+
+// vlozenie pramennej do tabulky
+bool insert_var(symtable *t, char *meno, Datatype typ, int scope_level) {
+    if (t == NULL || meno == NULL) {
+        return false;
+    }
+    char *kluc = make_compose_key(scope_level, meno);
+    if (kluc == NULL) {
+        free(kluc);
+        return false;
+    }
+    if (hash_table_lookup(kluc, t) != NULL) {
+        free(kluc);
+        return false;
+    }
+    Symboldata *s = malloc(sizeof(Symboldata));
+    if (s == NULL) {
+        free(kluc);
+        return false;
+    }
+    s->meno = kluc;
+    s->typ = typ;
+    s->is_function = false;
+    s->param_count = 0;
+    s->local_table = NULL;
+    s->param_type = NULL;
+    if (hash_table_insert(s, t)) {
+        return true;
+    }
+    free(kluc);
+    free(s);
+    return false;
+}
+bool insert_func(symtable *t, char *meno, Datatype return_typ, int param_count, Datatype *param_type) {
+    if (t == NULL || meno == NULL) {
+        return NULL;
+    }
+    Symboldata *s = malloc(sizeof(Symboldata));
+    if (s == NULL) {
+        return false;
+    }
+    if (hash_table_lookup(meno, t) != NULL) {
+        free(s);
+        return false;
+    }
+
+    s->meno = malloc(strlen(meno) + 1);
+    if (s->meno == NULL) {
+        return false;
+    }
+    strcpy(s->meno, meno);
+    s->typ = return_typ;
+    s->is_function = true;
+    s->param_count = param_count;
+    s->local_table = init_hash_table();
+    if (s->local_table == NULL) {
+        free(s->meno);
+        free(s);
+        return false;
+    }
+    s->param_type = param_type;
+    if (hash_table_insert(s, t)) {
+        return true;
+    }
+    delete_hash_tabulka(s->local_table);
+    free(s);
+    return false;
+}
+// hladanie kluca vnorenych funkciach
+Symboldata *lookup_var(int scope_level, char *meno, symtable *t) {
+    if (t == NULL) {
+        return NULL;
+    }
+    if (meno == NULL) {
+        return NULL;
+    }
+    for (int i = scope_level; i >= 0; i--) {
+        char *kluc = make_compose_key(i, meno);
+        if (kluc == NULL) {
+            return NULL;
+        }
+        Symboldata *hladane = hash_table_lookup(kluc, t);
+        free(kluc);
+        if (hladane != NULL) {
+            return hladane;
+        }
+    }
+    return NULL;
+}
+
+// danie prec zanorenych premmennych v if alebo while atd.
+void exit_scope(int scope_level, symtable *t) {
+    if (t == NULL) {
+        return;
+    }
+    for (int i = 0; i < t->velkost_tabulky; i++) {
+        if (t->hash_table[i] == NULL || t->hash_table[i] == delete_item || t->hash_table[i]->is_function == true) {
+            continue;
+        }
+        int level_zanorenia = atoi(t->hash_table[i]->meno);
+        if (level_zanorenia == scope_level) {
+            free(t->hash_table[i]->meno);
+            free(t->hash_table[i]);
+            t->hash_table[i] = delete_item;
+            t->pocet_synbolov--;
+        }
+    }
+    return;
+}
+
 // zmazanie daneho synbolu bud na indexe alebo dalej
 Symboldata *hash_table_delete(char *s, symtable *t) {
     if (s == NULL || t == NULL)
@@ -180,7 +260,7 @@ Symboldata *hash_table_delete(char *s, symtable *t) {
         if (t->hash_table[try] == NULL) {
             return NULL;
         }
-        if (t->hash_table[try] != NULL && !(strcmp(t->hash_table[try]->meno, s))) {
+        if (t->hash_table[try] != NULL && t->hash_table[try] != delete_item && !(strcmp(t->hash_table[try]->meno, s))) {
             Symboldata *tmp = t->hash_table[try];
             t->hash_table[try] = delete_item;
             t->pocet_synbolov = t->pocet_synbolov - 1;
@@ -189,10 +269,18 @@ Symboldata *hash_table_delete(char *s, symtable *t) {
     }
     return NULL;
 }
+
+// zmaze celu tabulku
 void delete_hash_tabulka(symtable *t) {
+    if (t == NULL) {
+        return;
+    }
 
     for (int i = 0; i < t->velkost_tabulky; i++) {
         if (t->hash_table[i] != NULL && t->hash_table[i] != delete_item) {
+            if (t->hash_table[i]->is_function == true) {
+                delete_hash_tabulka(t->hash_table[i]->local_table);
+            }
             free(t->hash_table[i]->meno); // nicis meno
             free(t->hash_table[i]);       // nisic strukturu datatyp
         }
@@ -200,7 +288,4 @@ void delete_hash_tabulka(symtable *t) {
     free(t->hash_table); // nicis hastable
     free(t);             // nicis ukazovatel ndo pamate na tuto tabulku
 }
-// opravit delete, ist po NULL alebo kym to najdes a vsetko posunut o ten jeden vyssie hotovo
-// zmazat v insert ze nemoze byt ta dana funkcia 2x hotovo
 // specifikacie ifj - 4 odkaz dorob
-// sprav uvolennie celej tabulky hotovo
