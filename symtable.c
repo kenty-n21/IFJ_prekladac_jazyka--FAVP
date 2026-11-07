@@ -6,10 +6,11 @@
 
 typedef enum {
     type_int,
-    type_float,
+    type_double,
     type_string,
     type_bool,
-    type_void,
+    type_unit,
+    type_any,
 } Datatype;
 typedef struct symtable symtable; // to na to aby kompilator vedel ze tato struktura exituje(bez toho to nejde)
 typedef struct {
@@ -174,7 +175,7 @@ bool insert_var(symtable *t, char *meno, Datatype typ, int scope_level) {
 }
 bool insert_func(symtable *t, char *meno, Datatype return_typ, int param_count, Datatype *param_type) {
     if (t == NULL || meno == NULL) {
-        return NULL;
+        return false;
     }
     Symboldata *s = malloc(sizeof(Symboldata));
     if (s == NULL) {
@@ -227,6 +228,60 @@ Symboldata *lookup_var(int scope_level, char *meno, symtable *t) {
         }
     }
     return NULL;
+}
+
+void insert_vstavane_funkcie(symtable *t) {
+    if (t == NULL) {
+        return;
+    }
+    Datatype *typ = malloc(sizeof(Datatype));
+    if (typ == NULL) {
+        return;
+    }
+    *typ = type_any;
+    insert_func(t, "print", type_unit, 1, typ);
+    insert_func(t, "readLine", type_string, 0, NULL);
+    insert_func(t, "readInt", type_int, 0, NULL);
+    insert_func(t, "readDouble", type_double, 0, NULL);
+    Datatype *typ1 = malloc(sizeof(Datatype));
+    if (typ1 == NULL) {
+        return;
+    }
+    *typ1 = type_any;
+    insert_func(t, "toStr", type_string, 1, typ1);
+    Datatype *typ2 = malloc(sizeof(Datatype));
+    if (typ2 == NULL) {
+        return;
+    }
+    *typ2 = type_double;
+    insert_func(t, "toInt", type_int, 1, typ2);
+    Datatype *typ3 = malloc(sizeof(Datatype));
+    if (typ3 == NULL) {
+        return;
+    }
+    *typ3 = type_string;
+    insert_func(t, "strLength", type_int, 1, typ3);
+    Datatype *typ4 = malloc(sizeof(Datatype));
+    if (typ4 == NULL) {
+        return;
+    }
+    *typ4 = type_int;
+    insert_func(t, "chr", type_string, 1, typ4);
+    Datatype *typ5 = malloc(sizeof(Datatype) * 2);
+    if (typ5 == NULL) {
+        return;
+    }
+    typ5[0] = type_string;
+    typ5[1] = type_int;
+    insert_func(t, "ord", type_int, 2, typ5);
+    Datatype *typ6 = malloc(sizeof(Datatype) * 3);
+    if (typ6 == NULL) {
+        return;
+    }
+    typ6[0] = type_string;
+    typ6[1] = type_int;
+    typ6[2] = type_int;
+    insert_func(t, "subStr", type_string, 3, typ6);
 }
 
 // danie prec zanorenych premmennych v if alebo while atd.
