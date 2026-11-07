@@ -359,4 +359,3 @@ void delete_hash_tabulka(symtable *t) {
     free(t->hash_table); // nicis hastable
     free(t);             // nicis ukazovatel ndo pamate na tuto tabulku
 }
-// specifikacie ifj - 4 odkaz dorob
