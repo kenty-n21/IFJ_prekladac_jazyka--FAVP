@@ -336,6 +336,7 @@ void delete_hash_tabulka(symtable *t) {
             if (t->hash_table[i]->is_function == true) {
                 delete_hash_tabulka(t->hash_table[i]->local_table);
             }
+            free(t->hash_table[i]->param_type);
             free(t->hash_table[i]->meno); // nicis meno
             free(t->hash_table[i]);       // nisic strukturu datatyp
         }
