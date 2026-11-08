@@ -74,7 +74,10 @@ static PrecSymbol token_to_symbol(Token *token){
       case TOKEN_RPAREN:
          return SYM_RPAR;
          break;
-      case TOKEN_IDENTIFIER || TOKEN_INTEGER || TOKEN_DOUBLE || TOKEN_STRING:
+      case TOKEN_IDENTIFIER: 
+      case TOKEN_INTEGER:
+      case TOKEN_DOUBLE:
+      case TOKEN_STRING:
          return SYM_ID;
          break;
       default : return SYM_DOLLAR;
