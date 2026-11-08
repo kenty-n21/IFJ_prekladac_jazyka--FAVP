@@ -30,8 +30,7 @@ bool push_stack(TStack *s, TSData data){
     TSElem* NewElemPtr = (TSElem *)malloc(sizeof(struct TSElem));
     if (NewElemPtr == NULL)
         return false;
-    NewElemPtr->data.symbol = data.symbol;
-    NewElemPtr->data.type = data.type;
+    NewElemPtr->data = data;
     NewElemPtr->next = s->top;
     s->top = NewElemPtr;
     return true;
@@ -44,6 +43,7 @@ bool insert_terminal_stop_stack(TStack *s){
         return false;
     NewElemPtr->data.symbol = SYM_STOP;
     NewElemPtr->data.type = TYPE_UNDEFINED;
+    NewElemPtr->data.node = NULL;
 
     TSElem *PrevElem, *CurrElem;
     CurrElem = s->top;

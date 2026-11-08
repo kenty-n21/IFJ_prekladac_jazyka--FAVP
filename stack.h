@@ -44,6 +44,7 @@ typedef enum{
 typedef struct TSData{
     DataType type;
     PrecSymbol symbol;
+    struct ExprNode *node;
 }TSData;
 
 //štrúktúra prvku v zásobníku
