@@ -11,7 +11,7 @@
 #define SCANNER_H
 
 // Maximalna dlzka atributu tokenu (v znakoch bez ukoncovacej nuly)
-#define MAX_TOKEN_LEN 1023
+#define MAX_TOKEN_LEN 4095
 
 // Typy lexikalnych jednotiek (tokenov) [podla sekcie 1.1 a 1.2 specifikacie]
 typedef enum {

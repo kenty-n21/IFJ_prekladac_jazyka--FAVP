@@ -25,11 +25,16 @@ static int paren_depth = 0;         // Hlbka vnorenia okruhlych zatvoriek ()
 static int seen_newline = 0;        // Bol od posledneho tokenu fyzicky koniec riadku \n
 static int line_has_tokens = 0;     // Boli uz na aktualnom logickom riadku vydane tokeny
 
-// Bezpecne makro na pridanie znaku do atributu tokenu
+// Priznak, ze atribut aktualneho tokenu je dlhsi ako MAX_TOKEN_LEN
+static int attr_overflow = 0;
+
+// Bezpecne makro na pridanie znaku do atributu tokenu (pri preteceni nastavi priznak)
 #define ADD_CHAR(token, attr_len, ch) \
     do { \
         if ((attr_len) < MAX_TOKEN_LEN) { \
             (token).attribute[(attr_len)++] = (char)(ch); \
+        } else { \
+            attr_overflow = 1; \
         } \
     } while (0)
 
@@ -69,6 +74,7 @@ void scanner_init(void) {
     seen_newline = 0;
     line_has_tokens = 0;
     pushback_count = 0;
+    attr_overflow = 0;
 }
 
 /**
@@ -138,9 +144,9 @@ static int read_digits_with_underscores(Token *token, int *attr_len) {
 }
 
 /**
- * @brief Nacita a vrati dalsi token zo standardneho vstupu.
+ * @brief Vlastny lexikalny analyzator - nacita a vrati dalsi token (bez kontroly pretecenia).
  */
-Token get_next_token(void) {
+static Token scan_token(void) {
     Token token;
     token.attribute[0] = '\0';
     token.indent = indent_stack[indent_top];
@@ -697,4 +703,17 @@ Token get_next_token(void) {
         token.type = TOKEN_ERROR;
         return token;
     }
+}
+
+/**
+ * @brief Nacita a vrati dalsi token zo standardneho vstupu.
+ * Ak sa atribut tokenu nezmestil do MAX_TOKEN_LEN, vrati TOKEN_ERROR.
+ */
+Token get_next_token(void) {
+    attr_overflow = 0;
+    Token token = scan_token();
+    if (attr_overflow) {
+        token.type = TOKEN_ERROR;
+    }
+    return token;
 }
