@@ -5,6 +5,8 @@
  *
  * AI Prompt: "VYGENERUJ MI: Kompletny hlavickovy subor scanner.h pre jazyk
  * IFJ26 vratane vsetkych klucovych slov, operatorov a podpory pre odsadenie."
+ * AI Prompt (uprava): "Odstran 'to', 'until', 'by' z klucovych slov, lebo nie su
+ * v zozname klucovych slov v specifikacii IFJ26."
  */
 
 #ifndef SCANNER_H
@@ -104,6 +106,9 @@ void scanner_init(void);
 
 /**
  * @brief Nacita a vrati dalsiu lexikalnu jednotku (token) zo standardneho vstupu.
+ * Na konci vstupu vrati najprv TOKEN_EOL (ak posledny riadok nekonci LF), potom
+ * zodpovedajuci pocet TOKEN_DEDENT a nakoniec TOKEN_EOF. Pri lexikalnej chybe
+ * (vratane atributu dlhsieho ako MAX_TOKEN_LEN) vrati TOKEN_ERROR.
  * @return Struktura Token obsahujuca typ, atribut a informacie o odsadeni.
  */
 Token get_next_token(void);

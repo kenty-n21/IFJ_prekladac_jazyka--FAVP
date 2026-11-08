@@ -6,6 +6,11 @@
  * AI Prompt: "VYGENERUJ MI: Kompletny scanner.c pre IFJ26 s osetrenim escape
  * sekvencii, viacriadkovych retazcov, prisnou kontrolou cisel, komentarov
  * a sledovanim odsadenia (INDENT/DEDENT) podla specifikacie IFJ26."
+ *
+ * AI Prompt (uprava): "Uprav scanner: vydaj TOKEN_EOL pred EOF ak posledny
+ * riadok nekonci LF; 'to', 'until', 'by' nech su bezne identifikatory; pri
+ * prilis dlhom atribute vrat chybu namiesto ticheho orezania; nahrad ungetc
+ * vlastnym zasobnikom spatne vratenych znakov (ungetc zaruci len 1 znak)."
  */
 
 #include <stdio.h>
