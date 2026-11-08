@@ -8,8 +8,6 @@
 #include <stdbool.h>
 #include "error.h"
 #include "stack.h"
-
-
 #include "scanner.h"   // tokeny
 #include "symtable.h"  // tabuľka symbolov
 // #include "parser.h" ale pozor na cyklickú závislosť
@@ -25,6 +23,7 @@ typedef enum {
 
 /* Uzol AST výrazu. */
 typedef enum { NODE_LITERAL, NODE_VAR, NODE_UNARY, NODE_BINARY } NodeKind;
+
 
 typedef struct ExprNode {
     NodeKind kind;
@@ -42,6 +41,7 @@ typedef struct {
     DataType type;
     ExprNode *root;
 } ExprResult;
+
 
 /*
  * Spracuje výraz od aktuálneho tokenu.
