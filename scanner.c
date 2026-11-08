@@ -321,6 +321,12 @@ Token get_next_token(void) {
                 token.type = TOKEN_ERROR;
                 return token;
             }
+            // Posledny riadok bez koncoveho \n: najprv vydame EOL, EOF az potom
+            if (line_has_tokens) {
+                line_has_tokens = 0;
+                token.type = TOKEN_EOL;
+                return token;
+            }
             if (indent_top > 0) {
                 indent_top--;
                 pending_dedents = indent_top;
