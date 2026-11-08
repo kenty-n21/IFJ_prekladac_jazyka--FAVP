@@ -82,9 +82,6 @@ static TokenType check_keyword(const char *word) {
     if (strcmp(word, "List") == 0) return TOKEN_KW_LIST;
     if (strcmp(word, "match") == 0) return TOKEN_KW_MATCH;
     if (strcmp(word, "type") == 0) return TOKEN_KW_TYPE;
-    if (strcmp(word, "to") == 0) return TOKEN_KW_TO;
-    if (strcmp(word, "until") == 0) return TOKEN_KW_UNTIL;
-    if (strcmp(word, "by") == 0) return TOKEN_KW_BY;
 
     return TOKEN_IDENTIFIER;
 }

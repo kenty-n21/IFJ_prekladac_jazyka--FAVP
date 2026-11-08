@@ -56,9 +56,8 @@ typedef enum {
     TOKEN_KW_LIST,          // List
     TOKEN_KW_MATCH,         // match
     TOKEN_KW_TYPE,          // type
-    TOKEN_KW_TO,            // to
-    TOKEN_KW_UNTIL,         // until
-    TOKEN_KW_BY,            // by
+    // Pozn.: 'to', 'until' a 'by' nie su klucove slova (nie su v zozname v sekcii 1.1),
+    // scanner ich vracia ako TOKEN_IDENTIFIER a parser ich rozpozna podla atributu.
 
     // Operatory a oddelovace [sekcia 1.2, 2 a 3]
     TOKEN_ASSIGN,           // =
