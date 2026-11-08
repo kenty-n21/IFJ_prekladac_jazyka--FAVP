@@ -1,17 +1,8 @@
-/*
- * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
- * Subor: main.c
- * Autor: Andrej Beles (xbelesa00)
- *
- * AI Prompt: "VYGENERUJ MI: Predpripraveny main.c pre IFJ26 s prepinacom
- * medzi testovanim scannera a finalnym volanim parsera."
- */
-
 #include <stdio.h>
 #include "scanner.h"
-// #include "parser.h" (odkomentujeme, ked bude hotovy parser.h)
+#include "parser.h" // Odkomentované, aby main videl parser
 
-#define TEST_SCANNER    // (!zakomentujeme tento riadok, ked budete spajat projekt s Parserom)
+// #define TEST_SCANNER    // ZAKOMENTOVANÉ: Prepína projekt z testovania scannera na reálny parser
 
 
 #ifdef TEST_SCANNER
@@ -46,11 +37,16 @@ int main(void) {
     }
     return 0;
 #else
-    // (finalny rezim pre odovzdanie - spusti syntakticku analyzu a preklad)
-    int result = parse(); 
+    // (reálny režim pre preklad a syntaktickú analýzu)
+    // Predpokladáme, že vaša hlavná funkcia v parser.c sa volá parser_program() 
+    // a vrací 0 pri úspechu alebo chybový kód.
+    int result = parser_program(); 
+    
     if (result != 0) {
         fprintf(stderr, "Preklad skoncil s chybou: %d\n", result);
+    } else {
+        fprintf(stderr, "Preklad prebehol úspešne!\n");
     }
-    return result; // [vracia 0 pri uspechu alebo kod chyby 1..10, 99]
+    return result; // [vracia 0 pri uspechu alebo kod chyby]
 #endif
 }
