@@ -39,6 +39,7 @@ typedef struct symtable {
 // musis deklarovat dopredu ze dana funkcia existuje lebo ak nie tak mas chybu + warning + note a nemozes skpirovat funkciu
 // ako taku pretoze ta zas obsahuje ine funkcie a inak to nefunguje
 bool hash_table_insert(Symboldata *s, symtable *t);
+void delete_hash_tabulka(symtable *t);// !!!!! gcc -std=c11 -Wall -Wextra -pedantic zbehne bez erroru
 // vyhlada index kde ma byt ulozena dana hodnota
 symtable *resize_hash_table(symtable *ptr) {
     if (ptr == NULL) {
@@ -75,7 +76,7 @@ unsigned int hash_funkcia(char *meno) {
     return hash_hodnota;
 }
 // inicializuje tabulku
-symtable *init_hash_table() {
+symtable *init_hash_table(void) {
     symtable *t;
     t = malloc(sizeof(symtable));
     if (t == NULL) {
