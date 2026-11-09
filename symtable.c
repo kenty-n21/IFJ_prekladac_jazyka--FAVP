@@ -10,13 +10,14 @@
 #include <string.h>
 
 typedef enum {
-    type_int,
-    type_double,
-    type_string,
-    type_bool,
-    type_unit,
-    type_any,
+    TYPE_INT,
+    TYPE_DOUBLE,
+    TYPE_STRING,
+    TYPE_BOOL,
+    TYPE_UNIT,
+    TYPE_ANY,
 } Datatype;
+
 typedef struct symtable symtable; // to na to aby kompilator vedel ze tato struktura exituje(bez toho to nejde)
 typedef struct {
     char *meno;
@@ -39,6 +40,7 @@ typedef struct symtable {
 // musis deklarovat dopredu ze dana funkcia existuje lebo ak nie tak mas chybu + warning + note a nemozes skpirovat funkciu
 // ako taku pretoze ta zas obsahuje ine funkcie a inak to nefunguje
 bool hash_table_insert(Symboldata *s, symtable *t);
+void delete_hash_tabulka(symtable *t); // !!!!! gcc -std=c11 -Wall -Wextra -pedantic zbehne bez erroru
 // vyhlada index kde ma byt ulozena dana hodnota
 symtable *resize_hash_table(symtable *ptr) {
     if (ptr == NULL) {
@@ -75,7 +77,7 @@ unsigned int hash_funkcia(char *meno) {
     return hash_hodnota;
 }
 // inicializuje tabulku
-symtable *init_hash_table() {
+symtable *init_hash_table(void) {
     symtable *t;
     t = malloc(sizeof(symtable));
     if (t == NULL) {
@@ -239,7 +241,7 @@ Symboldata *lookup_var(int scope_level, char *meno, symtable *t) {
     return hash_table_lookup(meno, t);
 }
 
-void insert_vstavane_funkcie(symtable *t) {
+void insert_included_fun(symtable *t) {
     if (t == NULL) {
         return;
     }
@@ -247,50 +249,50 @@ void insert_vstavane_funkcie(symtable *t) {
     if (typ == NULL) {
         return;
     }
-    *typ = type_any;
-    insert_func(t, "print", type_unit, 1, typ);
-    insert_func(t, "readLine", type_string, 0, NULL);
-    insert_func(t, "readInt", type_int, 0, NULL);
-    insert_func(t, "readDouble", type_double, 0, NULL);
+    *typ = TYPE_ANY;
+    insert_func(t, "print", TYPE_UNIT, 1, typ);
+    insert_func(t, "readLine",TYPE_STRING, 0, NULL);
+    insert_func(t, "readInt", TYPE_INT, 0, NULL);
+    insert_func(t, "readDouble", TYPE_DOUBLE, 0, NULL);
     Datatype *typ1 = malloc(sizeof(Datatype));
     if (typ1 == NULL) {
         return;
     }
-    *typ1 = type_any;
-    insert_func(t, "toStr", type_string, 1, typ1);
+    *typ1 = TYPE_ANY;
+    insert_func(t, "toStr", TYPE_STRING, 1, typ1);
     Datatype *typ2 = malloc(sizeof(Datatype));
     if (typ2 == NULL) {
         return;
     }
-    *typ2 = type_double;
-    insert_func(t, "toInt", type_int, 1, typ2);
+    *typ2 =TYPE_DOUBLE;
+    insert_func(t, "toInt", TYPE_INT, 1, typ2);
     Datatype *typ3 = malloc(sizeof(Datatype));
     if (typ3 == NULL) {
         return;
     }
-    *typ3 = type_string;
-    insert_func(t, "strLength", type_int, 1, typ3);
+    *typ3 =TYPE_STRING;
+    insert_func(t, "strLength", TYPE_INT, 1, typ3);
     Datatype *typ4 = malloc(sizeof(Datatype));
     if (typ4 == NULL) {
         return;
     }
-    *typ4 = type_int;
-    insert_func(t, "chr", type_string, 1, typ4);
+    *typ4 = TYPE_INT;
+    insert_func(t, "chr", TYPE_STRING, 1, typ4);
     Datatype *typ5 = malloc(sizeof(Datatype) * 2);
     if (typ5 == NULL) {
         return;
     }
-    typ5[0] = type_string;
-    typ5[1] = type_int;
-    insert_func(t, "ord", type_int, 2, typ5);
+    typ5[0] = TYPE_STRING;
+    typ5[1] = TYPE_INT;
+    insert_func(t, "ord",TYPE_INT, 2, typ5);
     Datatype *typ6 = malloc(sizeof(Datatype) * 3);
     if (typ6 == NULL) {
         return;
     }
-    typ6[0] = type_string;
-    typ6[1] = type_int;
-    typ6[2] = type_int;
-    insert_func(t, "subStr", type_string, 3, typ6);
+    typ6[0] = TYPE_STRING;
+    typ6[1] = TYPE_INT;
+    typ6[2] = TYPE_INT;
+    insert_func(t, "subStr", TYPE_STRING, 3, typ6);
 }
 
 // danie prec zanorenych premmennych v if alebo while atd.

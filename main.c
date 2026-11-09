@@ -1,12 +1,29 @@
+/*
+ * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
+ * Subor: main.c
+ * Autor: Andrej Beles (xbelesa00)
+ *
+ * AI Prompt: "VYGENERUJ MI: Predpripraveny main.c pre IFJ26 s prepinacom
+ * medzi testovanim scannera a finalnym volanim parsera."
+ *
+ * AI Prompt (uprava): "Uprav main.c tak, aby sa zatial dal zostavit bez parsera
+ * (parser.h sa includuje az po vypnuti TEST_SCANNER) a volal parser_program()."
+ */
+
 #include <stdio.h>
 #include "scanner.h"
-#include "parser.h" // Odkomentované, aby main videl parser
 
-// #define TEST_SCANNER    // ZAKOMENTOVANÉ: Prepína projekt z testovania scannera na reálny parser
+// Rezim prekladu: kym nie je hotovy parser, bezi len test scannera.
+// Ked bude parser hotovy: zakomentujte nasledujuci riadok a pridajte parser.c
+// do SRCS v Makefile.
+#define TEST_SCANNER
 
+#ifndef TEST_SCANNER
+#include "parser.h"
+#endif
 
 #ifdef TEST_SCANNER
-// Pomocna funkcia na vypis tokenu (vypisujeme na stderr, aby sme nespini stdout)
+// Pomocna funkcia na vypis tokenu (vypisujeme na stderr, aby sme nespinili stdout)
 static void print_token(Token t) {
     fprintf(stderr, "Token: %d", t.type);
     if (t.attribute[0] != '\0') {
@@ -18,13 +35,16 @@ static void print_token(Token t) {
 
 /**
  * Hlavny vstupny bod prekladaca IFJ26.
- * [Program cita zo stdin, generuje IFJcode26 na stdout a vracia chybovy kod]
+ * Cita zdrojovy kod zo stdin, generuje IFJcode26 na stdout a vracia chybovy kod.
+ * Chybove a ladiace vypisy ide na stderr.
+ *
+ * @return 0 pri uspechu, inak kod chyby (1-7, 10, 99) podla zadania.
  */
 int main(void) {
     scanner_init();
 
 #ifdef TEST_SCANNER
-    // (docasny rezim pre lokane testovanie samotneho scannera)
+    // Docasny rezim pre lokalne testovanie samotneho scannera
     Token token;
     do {
         token = get_next_token();
@@ -33,20 +53,17 @@ int main(void) {
 
     if (token.type == TOKEN_ERROR) {
         fprintf(stderr, "Lexikalna chyba (kod 1).\n");
-        return 1; // [chyba 1 = chyba v ramci lexikalnej analyzy]
+        return 1; // chyba 1 = chyba v ramci lexikalnej analyzy
     }
     return 0;
 #else
-    // (reálny režim pre preklad a syntaktickú analýzu)
-    // Predpokladáme, že vaša hlavná funkcia v parser.c sa volá parser_program() 
-    // a vrací 0 pri úspechu alebo chybový kód.
-    int result = parser_program(); 
-    
+    // Finalny rezim: syntakticka analyza a preklad
+    int result = parser_program();
     if (result != 0) {
         fprintf(stderr, "Preklad skoncil s chybou: %d\n", result);
     } else {
         fprintf(stderr, "Preklad prebehol úspešne!\n");
     }
-    return result; // [vracia 0 pri uspechu alebo kod chyby]
+    return result; // 0 pri uspechu alebo kod chyby 1..10, 99
 #endif
 }

@@ -5,13 +5,15 @@
  *
  * AI Prompt: "VYGENERUJ MI: Kompletny hlavickovy subor scanner.h pre jazyk
  * IFJ26 vratane vsetkych klucovych slov, operatorov a podpory pre odsadenie."
+ * AI Prompt (uprava): "Odstran 'to', 'until', 'by' z klucovych slov, lebo nie su
+ * v zozname klucovych slov v specifikacii IFJ26."
  */
 
 #ifndef SCANNER_H
 #define SCANNER_H
 
 // Maximalna dlzka atributu tokenu (v znakoch bez ukoncovacej nuly)
-#define MAX_TOKEN_LEN 1023
+#define MAX_TOKEN_LEN 4095
 
 // Typy lexikalnych jednotiek (tokenov) [podla sekcie 1.1 a 1.2 specifikacie]
 typedef enum {
@@ -56,9 +58,8 @@ typedef enum {
     TOKEN_KW_LIST,          // List
     TOKEN_KW_MATCH,         // match
     TOKEN_KW_TYPE,          // type
-    TOKEN_KW_TO,            // to
-    TOKEN_KW_UNTIL,         // until
-    TOKEN_KW_BY,            // by
+    // Pozn.: 'to', 'until' a 'by' nie su klucove slova (nie su v zozname v sekcii 1.1),
+    // scanner ich vracia ako TOKEN_IDENTIFIER a parser ich rozpozna podla atributu.
 
     // Operatory a oddelovace [sekcia 1.2, 2 a 3]
     TOKEN_ASSIGN,           // =
@@ -105,6 +106,9 @@ void scanner_init(void);
 
 /**
  * @brief Nacita a vrati dalsiu lexikalnu jednotku (token) zo standardneho vstupu.
+ * Na konci vstupu vrati najprv TOKEN_EOL (ak posledny riadok nekonci LF), potom
+ * zodpovedajuci pocet TOKEN_DEDENT a nakoniec TOKEN_EOF. Pri lexikalnej chybe
+ * (vratane atributu dlhsieho ako MAX_TOKEN_LEN) vrati TOKEN_ERROR.
  * @return Struktura Token obsahujuca typ, atribut a informacie o odsadeni.
  */
 Token get_next_token(void);

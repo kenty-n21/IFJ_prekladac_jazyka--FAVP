@@ -19,19 +19,48 @@ static int indent_stack[MAX_INDENT_LEVELS] = {0};
 static int indent_top = 0;
 static int pending_dedents = 0;
 
-//Stavove premenne pre spracovanie logickych a fyzickych riadkov
+// Stavove premenne pre spracovanie logickych a fyzickych riadkov
 static int at_line_start = 1;       // Sme na zaciatku fyzickeho riadku (pocitame medzery)
 static int paren_depth = 0;         // Hlbka vnorenia okruhlych zatvoriek ()
 static int seen_newline = 0;        // Bol od posledneho tokenu fyzicky koniec riadku \n
 static int line_has_tokens = 0;     // Boli uz na aktualnom logickom riadku vydane tokeny
 
-// Bezpecne makro na pridanie znaku do atributu tokenu
+// Priznak, ze atribut aktualneho tokenu je dlhsi ako MAX_TOKEN_LEN
+static int attr_overflow = 0;
+
+// Bezpecne makro na pridanie znaku do atributu tokenu (pri preteceni nastavi priznak)
 #define ADD_CHAR(token, attr_len, ch) \
     do { \
         if ((attr_len) < MAX_TOKEN_LEN) { \
             (token).attribute[(attr_len)++] = (char)(ch); \
+        } else { \
+            attr_overflow = 1; \
         } \
     } while (0)
+
+// Vlastny zasobnik spatne vratenych znakov (ungetc garantuje iba jeden znak)
+#define PUSHBACK_SIZE 8
+static int pushback[PUSHBACK_SIZE];
+static int pushback_count = 0;
+
+/**
+ * @brief Nacita dalsi znak - najprv zo zasobnika vratenych znakov, inak zo stdin.
+ */
+static int next_char(void) {
+    if (pushback_count > 0) {
+        return pushback[--pushback_count];
+    }
+    return getchar();
+}
+
+/**
+ * @brief Vrati znak spat na vstup (EOF sa ignoruje, dalsi next_char ho vrati znova).
+ */
+static void unget_char(int c) {
+    if (c != EOF && pushback_count < PUSHBACK_SIZE) {
+        pushback[pushback_count++] = c;
+    }
+}
 
 /**
  * @brief Resetuje stav lexikalneho analyzatora do pociatocneho stavu.
@@ -44,6 +73,8 @@ void scanner_init(void) {
     paren_depth = 0;
     seen_newline = 0;
     line_has_tokens = 0;
+    pushback_count = 0;
+    attr_overflow = 0;
 }
 
 /**
@@ -82,9 +113,6 @@ static TokenType check_keyword(const char *word) {
     if (strcmp(word, "List") == 0) return TOKEN_KW_LIST;
     if (strcmp(word, "match") == 0) return TOKEN_KW_MATCH;
     if (strcmp(word, "type") == 0) return TOKEN_KW_TYPE;
-    if (strcmp(word, "to") == 0) return TOKEN_KW_TO;
-    if (strcmp(word, "until") == 0) return TOKEN_KW_UNTIL;
-    if (strcmp(word, "by") == 0) return TOKEN_KW_BY;
 
     return TOKEN_IDENTIFIER;
 }
@@ -95,10 +123,10 @@ static TokenType check_keyword(const char *word) {
  * @return 1 ak je sekvencia platna, 0 pri lexikalnej chybe.
  */
 static int read_digits_with_underscores(Token *token, int *attr_len) {
-    int c = getchar();
+    int c = next_char();
     while (isdigit(c) || c == '_') {
         if (c == '_') {
-            int next_c = getchar();
+            int next_c = next_char();
             // Za podtrzitkom musi okamzite nasledovat cislica [sekcia 1.1]
             if (!isdigit(next_c)) {
                 return 0;
@@ -107,18 +135,18 @@ static int read_digits_with_underscores(Token *token, int *attr_len) {
         } else {
             ADD_CHAR(*token, *attr_len, c);
         }
-        c = getchar();
+        c = next_char();
     }
     if (c != EOF) {
-        ungetc(c, stdin);
+        unget_char(c);
     }
     return 1;
 }
 
 /**
- * @brief Nacita a vrati dalsi token zo standardneho vstupu.
+ * @brief Vlastny lexikalny analyzator - nacita a vrati dalsi token (bez kontroly pretecenia).
  */
-Token get_next_token(void) {
+static Token scan_token(void) {
     Token token;
     token.attribute[0] = '\0';
     token.indent = indent_stack[indent_top];
@@ -144,7 +172,7 @@ Token get_next_token(void) {
             has_leading_tab = 0;
 
             while (1) {
-                c = getchar();
+                c = next_char();
                 if (c == ' ') {
                     current_spaces++;
                 } else if (c == '\t') {
@@ -183,10 +211,10 @@ Token get_next_token(void) {
 
             // Kontrola komentarov zacinajucich priamo po odsadenych medzerach
             if (c == '/') {
-                int next_c = getchar();
+                int next_c = next_char();
                 if (next_c == '/') {
                     // Riadok tvoreny len bielymi znakmi a riadkovym komentarom sa ignoruje [sekcia 1.2]
-                    while ((c = getchar()) != '\n' && c != EOF);
+                    while ((c = next_char()) != '\n' && c != EOF);
                     seen_newline = 1;
                     continue;
                 } else if (next_c == '*') {
@@ -194,26 +222,26 @@ Token get_next_token(void) {
                     int depth = 1;
                     int has_nl = 0;
                     while (depth > 0) {
-                        c = getchar();
+                        c = next_char();
                         if (c == EOF) { token.type = TOKEN_ERROR; return token; }
                         if (c == '\n') has_nl = 1;
                         if (c == '/') {
-                            int temp = getchar();
+                            int temp = next_char();
                             if (temp == '*') depth++;
-                            else if (temp != EOF) ungetc(temp, stdin);
+                            else if (temp != EOF) unget_char(temp);
                         } else if (c == '*') {
-                            int temp = getchar();
+                            int temp = next_char();
                             if (temp == '/') depth--;
-                            else if (temp != EOF) ungetc(temp, stdin);
+                            else if (temp != EOF) unget_char(temp);
                         }
                     }
                     if (has_nl) {
                         // Viacriadkovy blokovy komentar: za nim nesmu byt na riadku dalsie tokeny [sekcia 1.1]
-                        while ((c = getchar()) == ' ' || c == '\t' || c == '\r');
+                        while ((c = next_char()) == ' ' || c == '\t' || c == '\r');
                         if (c == '/') {
-                            int temp = getchar();
+                            int temp = next_char();
                             if (temp == '/') {
-                                while ((c = getchar()) != '\n' && c != EOF);
+                                while ((c = next_char()) != '\n' && c != EOF);
                             } else {
                                 token.type = TOKEN_ERROR;
                                 return token;
@@ -226,24 +254,24 @@ Token get_next_token(void) {
                         continue;
                     } else {
                         // Jednoriadkovy blokovy komentar na zaciatku riadku: skontrolujeme ci nasleduje koniec riadku
-                        while ((c = getchar()) == ' ' || c == '\t' || c == '\r');
+                        while ((c = next_char()) == ' ' || c == '\t' || c == '\r');
                         if (c == '\n') {
                             seen_newline = 1;
                             continue;
                         }
                         if (c == '/') {
-                            int temp = getchar();
+                            int temp = next_char();
                             if (temp == '/') {
-                                while ((c = getchar()) != '\n' && c != EOF);
+                                while ((c = next_char()) != '\n' && c != EOF);
                                 seen_newline = 1;
                                 continue;
                             }
-                            if (temp != EOF) ungetc(temp, stdin);
+                            if (temp != EOF) unget_char(temp);
                         }
                         // Ak za /* ... */ na tom istom riadku nasleduje kod, uplatnia sa pravidla pre riadok
                     }
                 } else {
-                    if (next_c != EOF) ungetc(next_c, stdin);
+                    if (next_c != EOF) unget_char(next_c);
                 }
             }
 
@@ -270,7 +298,7 @@ Token get_next_token(void) {
                         return token;
                     }
                     indent_stack[++indent_top] = current_spaces;
-                    ungetc(c, stdin);
+                    unget_char(c);
                     token.type = TOKEN_INDENT;
                     token.indent = current_spaces;
                     token.had_newline_before = seen_newline;
@@ -286,7 +314,7 @@ Token get_next_token(void) {
                         token.type = TOKEN_ERROR;
                         return token;
                     }
-                    ungetc(c, stdin);
+                    unget_char(c);
                     pending_dedents = dedent_count - 1;
                     token.type = TOKEN_DEDENT;
                     token.indent = current_spaces;
@@ -296,7 +324,7 @@ Token get_next_token(void) {
             }
             token.indent = indent_stack[indent_top];
         } else {
-            c = getchar();
+            c = next_char();
         }
 
         // 2. Bezne biele znaky uprostred riadku
@@ -321,6 +349,12 @@ Token get_next_token(void) {
                 token.type = TOKEN_ERROR;
                 return token;
             }
+            // Posledny riadok bez koncoveho \n: najprv vydame EOL, EOF az potom
+            if (line_has_tokens) {
+                line_has_tokens = 0;
+                token.type = TOKEN_EOL;
+                return token;
+            }
             if (indent_top > 0) {
                 indent_top--;
                 pending_dedents = indent_top;
@@ -335,37 +369,37 @@ Token get_next_token(void) {
 
         // 5. Komentare a operator delenia '/' [sekcia 1.1]
         if (c == '/') {
-            int next_c = getchar();
+            int next_c = next_char();
             if (next_c == '/') {
                 // Riadkovy komentar plati do konca riadku [sekcia 1.1]
-                while ((c = getchar()) != '\n' && c != EOF);
-                if (c != EOF) ungetc(c, stdin);
+                while ((c = next_char()) != '\n' && c != EOF);
+                if (c != EOF) unget_char(c);
                 continue;
             } else if (next_c == '*') {
                 // Blokovy komentar s podporou vnorenia [sekcia 1.1]
                 int depth = 1;
                 int has_nl = 0;
                 while (depth > 0) {
-                    c = getchar();
+                    c = next_char();
                     if (c == EOF) { token.type = TOKEN_ERROR; return token; }
                     if (c == '\n') has_nl = 1;
                     if (c == '/') {
-                        int temp = getchar();
+                        int temp = next_char();
                         if (temp == '*') depth++;
-                        else if (temp != EOF) ungetc(temp, stdin);
+                        else if (temp != EOF) unget_char(temp);
                     } else if (c == '*') {
-                        int temp = getchar();
+                        int temp = next_char();
                         if (temp == '/') depth--;
-                        else if (temp != EOF) ungetc(temp, stdin);
+                        else if (temp != EOF) unget_char(temp);
                     }
                 }
                 if (has_nl) {
                     // Za viacriadkovym blokovym komentarom nesmu byt na tom istom riadku dalsie tokeny [sekcia 1.1]
-                    while ((c = getchar()) == ' ' || c == '\t' || c == '\r');
+                    while ((c = next_char()) == ' ' || c == '\t' || c == '\r');
                     if (c == '/') {
-                        int temp = getchar();
+                        int temp = next_char();
                         if (temp == '/') {
-                            while ((c = getchar()) != '\n' && c != EOF);
+                            while ((c = next_char()) != '\n' && c != EOF);
                         } else {
                             token.type = TOKEN_ERROR;
                             return token;
@@ -374,11 +408,11 @@ Token get_next_token(void) {
                         token.type = TOKEN_ERROR;
                         return token;
                     }
-                    if (c != EOF) ungetc(c, stdin);
+                    if (c != EOF) unget_char(c);
                 }
                 continue;
             } else {
-                if (next_c != EOF) ungetc(next_c, stdin);
+                if (next_c != EOF) unget_char(next_c);
                 token.type = TOKEN_DIV;
                 token.had_newline_before = seen_newline;
                 seen_newline = 0;
@@ -396,9 +430,9 @@ Token get_next_token(void) {
         if (isalpha(c) || c == '_') {
             while (isalnum(c) || c == '_') {
                 ADD_CHAR(token, attr_len, c);
-                c = getchar();
+                c = next_char();
             }
-            if (c != EOF) ungetc(c, stdin);
+            if (c != EOF) unget_char(c);
             token.attribute[attr_len] = '\0';
             token.type = check_keyword(token.attribute);
             return token;
@@ -412,7 +446,7 @@ Token get_next_token(void) {
 
         // 8. Bodka '.' alebo desatinny literal zacinajuci bodkou (napr. .5) [sekcia 1.1 a 2]
         if (c == '.') {
-            int next_c = getchar();
+            int next_c = next_char();
             if (isdigit(next_c)) {
                 // Desatinne cislo bez celej casti (napr. .25 -> ulozime ako 0.25) [sekcia 1.1]
                 ADD_CHAR(token, attr_len, '0');
@@ -422,13 +456,13 @@ Token get_next_token(void) {
                     token.type = TOKEN_ERROR;
                     return token;
                 }
-                c = getchar();
+                c = next_char();
                 if (c == 'e' || c == 'E') {
                     ADD_CHAR(token, attr_len, c);
-                    c = getchar();
+                    c = next_char();
                     if (c == '+' || c == '-') {
                         ADD_CHAR(token, attr_len, c);
-                        c = getchar();
+                        c = next_char();
                     }
                     if (!isdigit(c)) { token.type = TOKEN_ERROR; return token; }
                     ADD_CHAR(token, attr_len, c);
@@ -436,25 +470,24 @@ Token get_next_token(void) {
                         token.type = TOKEN_ERROR;
                         return token;
                     }
-                    c = getchar();
+                    c = next_char();
                 }
                 // Nepovinna pripona d alebo D [sekcia 1.1]
-                if (c != 'd' && c != 'D' && c != EOF) {
-                    ungetc(c, stdin);
+                if (c == 'd' || c == 'D') {
+                    c = next_char();
                 }
-                // Kontrola, ci tesne za cislom nenasleduje pismeno alebo podtrzitko (napr. .5f)
-                int peek = getchar();
-                if (isalpha(peek) || peek == '_') {
+                // Kontrola, ci tesne za cislom nenasleduje pismeno alebo podtrzitko (napr. .5f, .5dX)
+                if (isalpha(c) || c == '_') {
                     token.type = TOKEN_ERROR;
                     return token;
                 }
-                if (peek != EOF) ungetc(peek, stdin);
+                if (c != EOF) unget_char(c);
 
                 token.attribute[attr_len] = '\0';
                 token.type = TOKEN_DOUBLE;
                 return token;
             } else {
-                if (next_c != EOF) ungetc(next_c, stdin);
+                if (next_c != EOF) unget_char(next_c);
                 token.type = TOKEN_DOT;
                 return token;
             }
@@ -471,11 +504,11 @@ Token get_next_token(void) {
                 return token;
             }
 
-            c = getchar();
+            c = next_char();
 
             // Desatinna cast
             if (c == '.') {
-                int next_c = getchar();
+                int next_c = next_char();
                 if (isdigit(next_c)) {
                     is_double = 1;
                     ADD_CHAR(token, attr_len, '.');
@@ -484,10 +517,18 @@ Token get_next_token(void) {
                         token.type = TOKEN_ERROR;
                         return token;
                     }
-                    c = getchar();
+                    c = next_char();
                 } else {
-                    // Ak za bodkou nie je cislica (napr. 5.toString vo VALMEM), vratime bodku do vstupu
-                    if (next_c != EOF) ungetc(next_c, stdin);
+                    // Ak za bodkou nie je cislica (napr. 5.toString vo VALMEM), vratime znak aj bodku do vstupu
+                    if (next_c != EOF) unget_char(next_c);
+                    unget_char('.');
+                    if (starts_with_zero && attr_len > 1) {
+                        token.type = TOKEN_ERROR;
+                        return token;
+                    }
+                    token.attribute[attr_len] = '\0';
+                    token.type = TOKEN_INTEGER;
+                    return token;
                 }
             }
 
@@ -495,10 +536,10 @@ Token get_next_token(void) {
             if (c == 'e' || c == 'E') {
                 is_double = 1;
                 ADD_CHAR(token, attr_len, c);
-                c = getchar();
+                c = next_char();
                 if (c == '+' || c == '-') {
                     ADD_CHAR(token, attr_len, c);
-                    c = getchar();
+                    c = next_char();
                 }
                 if (!isdigit(c)) { token.type = TOKEN_ERROR; return token; }
                 ADD_CHAR(token, attr_len, c);
@@ -506,12 +547,12 @@ Token get_next_token(void) {
                     token.type = TOKEN_ERROR;
                     return token;
                 }
-                c = getchar();
+                c = next_char();
             }
 
             // Nepovinna pripona d alebo D pre Double [sekcia 1.1]
             if (is_double && (c == 'd' || c == 'D')) {
-                c = getchar();
+                c = next_char();
             }
 
             // Nenulovy celociselny literal nesmie zacinat nulou (napr. 012 alebo 00) [sekcia 1.1]
@@ -526,7 +567,7 @@ Token get_next_token(void) {
                 return token;
             }
 
-            if (c != EOF) ungetc(c, stdin);
+            if (c != EOF) unget_char(c);
             token.attribute[attr_len] = '\0';
             token.type = is_double ? TOKEN_DOUBLE : TOKEN_INTEGER;
             return token;
@@ -534,14 +575,14 @@ Token get_next_token(void) {
 
         // 10. Retazcove literaly (String) - obycajne "..." aj viacriadkove """...""" [sekcia 1.1]
         if (c == '"') {
-            int next1 = getchar();
+            int next1 = next_char();
             if (next1 == '"') {
-                int next2 = getchar();
+                int next2 = next_char();
                 if (next2 == '"') {
                     // Viacriadkovy retazec """...""" (escape sekvencie sa nevyhodnocuju) [sekcia 1.1]
                     int quotes = 0;
                     while (1) {
-                        c = getchar();
+                        c = next_char();
                         if (c == EOF) { token.type = TOKEN_ERROR; return token; }
                         if (c == '\r') continue;
                         if (c == '"') {
@@ -560,7 +601,7 @@ Token get_next_token(void) {
                     return token;
                 } else {
                     // Prazdny jednoriadkovy retazec ""
-                    if (next2 != EOF) ungetc(next2, stdin);
+                    if (next2 != EOF) unget_char(next2);
                     token.attribute[0] = '\0';
                     token.type = TOKEN_STRING;
                     return token;
@@ -574,7 +615,7 @@ Token get_next_token(void) {
                         return token;
                     }
                     if (c == '\\') {
-                        c = getchar();
+                        c = next_char();
                         // Povolene su vyhradne escape sekvencie \\, \", \n, \r, \t [sekcia 1.1]
                         if (c == 'n') ADD_CHAR(token, attr_len, '\n');
                         else if (c == 't') ADD_CHAR(token, attr_len, '\t');
@@ -585,7 +626,7 @@ Token get_next_token(void) {
                     } else {
                         ADD_CHAR(token, attr_len, c);
                     }
-                    c = getchar();
+                    c = next_char();
                 }
                 token.attribute[attr_len] = '\0';
                 token.type = TOKEN_STRING;
@@ -595,53 +636,53 @@ Token get_next_token(void) {
 
         // 11. Viacznakove a jednoznakove operatory [sekcia 3 a 5]
         if (c == '=') {
-            int next_c = getchar();
+            int next_c = next_char();
             if (next_c == '=') { token.type = TOKEN_EQ; return token; }
             if (next_c == '>') { token.type = TOKEN_ARROW; return token; }
-            if (next_c != EOF) ungetc(next_c, stdin);
+            if (next_c != EOF) unget_char(next_c);
             token.type = TOKEN_ASSIGN;
             return token;
         }
         if (c == '!') {
-            int next_c = getchar();
+            int next_c = next_char();
             if (next_c == '=') { token.type = TOKEN_NEQ; return token; }
-            if (next_c != EOF) ungetc(next_c, stdin);
+            if (next_c != EOF) unget_char(next_c);
             token.type = TOKEN_NOT;
             return token;
         }
         if (c == '<') {
-            int next_c = getchar();
+            int next_c = next_char();
             if (next_c == '=') { token.type = TOKEN_LTE; return token; }
             if (next_c == '-') { token.type = TOKEN_LEFT_ARROW; return token; }
-            if (next_c != EOF) ungetc(next_c, stdin);
+            if (next_c != EOF) unget_char(next_c);
             token.type = TOKEN_LT;
             return token;
         }
         if (c == '>') {
-            int next_c = getchar();
+            int next_c = next_char();
             if (next_c == '=') { token.type = TOKEN_GTE; return token; }
-            if (next_c != EOF) ungetc(next_c, stdin);
+            if (next_c != EOF) unget_char(next_c);
             token.type = TOKEN_GT;
             return token;
         }
         if (c == '+') {
-            int next_c = getchar();
+            int next_c = next_char();
             if (next_c == '+') { token.type = TOKEN_CONCAT; return token; }
-            if (next_c != EOF) ungetc(next_c, stdin);
+            if (next_c != EOF) unget_char(next_c);
             token.type = TOKEN_PLUS;
             return token;
         }
         if (c == '&') {
-            int next_c = getchar();
+            int next_c = next_char();
             if (next_c == '&') { token.type = TOKEN_AND; return token; }
-            if (next_c != EOF) ungetc(next_c, stdin);
+            if (next_c != EOF) unget_char(next_c);
             token.type = TOKEN_ERROR;
             return token;
         }
         if (c == '|') {
-            int next_c = getchar();
+            int next_c = next_char();
             if (next_c == '|') { token.type = TOKEN_OR; return token; }
-            if (next_c != EOF) ungetc(next_c, stdin);
+            if (next_c != EOF) unget_char(next_c);
             token.type = TOKEN_PIPE;
             return token;
         }
@@ -669,4 +710,17 @@ Token get_next_token(void) {
         token.type = TOKEN_ERROR;
         return token;
     }
+}
+
+/**
+ * @brief Nacita a vrati dalsi token zo standardneho vstupu.
+ * Ak sa atribut tokenu nezmestil do MAX_TOKEN_LEN, vrati TOKEN_ERROR.
+ */
+Token get_next_token(void) {
+    attr_overflow = 0;
+    Token token = scan_token();
+    if (attr_overflow) {
+        token.type = TOKEN_ERROR;
+    }
+    return token;
 }

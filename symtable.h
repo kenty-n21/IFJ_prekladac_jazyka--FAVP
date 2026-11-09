@@ -5,13 +5,14 @@
 #include <stdlib.h>
 
 typedef enum {
-    type_int,
-    type_double,
-    type_string,
-    type_bool,
-    type_unit,
-    type_any,
+    TYPE_INT,
+    TYPE_DOUBLE,
+    TYPE_STRING,
+    TYPE_BOOL,
+    TYPE_UNIT,
+    TYPE_ANY,
 } Datatype;
+
 typedef struct symtable symtable;
 typedef struct {
     char *meno;
