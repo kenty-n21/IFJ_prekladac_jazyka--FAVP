@@ -6,11 +6,6 @@
  * AI Prompt: "VYGENERUJ MI: Kompletny scanner.c pre IFJ26 s osetrenim escape
  * sekvencii, viacriadkovych retazcov, prisnou kontrolou cisel, komentarov
  * a sledovanim odsadenia (INDENT/DEDENT) podla specifikacie IFJ26."
- *
- * AI Prompt (uprava): "Uprav scanner: vydaj TOKEN_EOL pred EOF ak posledny
- * riadok nekonci LF; 'to', 'until', 'by' nech su bezne identifikatory; pri
- * prilis dlhom atribute vrat chybu namiesto ticheho orezania; nahrad ungetc
- * vlastnym zasobnikom spatne vratenych znakov (ungetc zaruci len 1 znak)."
  */
 
 #include <stdio.h>
@@ -24,7 +19,7 @@ static int indent_stack[MAX_INDENT_LEVELS] = {0};
 static int indent_top = 0;
 static int pending_dedents = 0;
 
-//Stavove premenne pre spracovanie logickych a fyzickych riadkov
+// Stavove premenne pre spracovanie logickych a fyzickych riadkov
 static int at_line_start = 1;       // Sme na zaciatku fyzickeho riadku (pocitame medzery)
 static int paren_depth = 0;         // Hlbka vnorenia okruhlych zatvoriek ()
 static int seen_newline = 0;        // Bol od posledneho tokenu fyzicky koniec riadku \n
@@ -478,16 +473,15 @@ static Token scan_token(void) {
                     c = next_char();
                 }
                 // Nepovinna pripona d alebo D [sekcia 1.1]
-                if (c != 'd' && c != 'D' && c != EOF) {
-                    unget_char(c);
+                if (c == 'd' || c == 'D') {
+                    c = next_char();
                 }
-                // Kontrola, ci tesne za cislom nenasleduje pismeno alebo podtrzitko (napr. .5f)
-                int peek = next_char();
-                if (isalpha(peek) || peek == '_') {
+                // Kontrola, ci tesne za cislom nenasleduje pismeno alebo podtrzitko (napr. .5f, .5dX)
+                if (isalpha(c) || c == '_') {
                     token.type = TOKEN_ERROR;
                     return token;
                 }
-                if (peek != EOF) unget_char(peek);
+                if (c != EOF) unget_char(c);
 
                 token.attribute[attr_len] = '\0';
                 token.type = TOKEN_DOUBLE;
@@ -525,8 +519,16 @@ static Token scan_token(void) {
                     }
                     c = next_char();
                 } else {
-                    // Ak za bodkou nie je cislica (napr. 5.toString vo VALMEM), vratime bodku do vstupu
+                    // Ak za bodkou nie je cislica (napr. 5.toString vo VALMEM), vratime znak aj bodku do vstupu
                     if (next_c != EOF) unget_char(next_c);
+                    unget_char('.');
+                    if (starts_with_zero && attr_len > 1) {
+                        token.type = TOKEN_ERROR;
+                        return token;
+                    }
+                    token.attribute[attr_len] = '\0';
+                    token.type = TOKEN_INTEGER;
+                    return token;
                 }
             }
 
