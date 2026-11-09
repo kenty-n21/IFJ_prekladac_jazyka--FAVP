@@ -8,9 +8,24 @@
 #include "hashtable.h"
 #include "symtable.h"
 
+#define MAX_PARAMS 32
+
+
+typedef struct parser
+{
+    char *name;
+    Datatype type;
+
+}ParamInfo;
 
 //current token 
 static Token current_token; 
+
+static symtable *current_symtable = NULL;
+static int current_scope_level = 0;
+
+static ParamInfo current_params[MAX_PARAMS];
+static int current_param_count = 0;
 
 //deklaration of funktions
 static void fetch_token(void);
@@ -25,6 +40,7 @@ static void parse_parameter_list(int is_main);
 static void parse_if(void);
 static void parse_while(void);
 static void parse_return(void);
+
 
 
 
@@ -68,11 +84,34 @@ static void parse_prolog(void){
 
 
 
-
 //kotrola pre prikaz: priradenie hodnoty do premennej (zodpoveda kod pravidlam IFJ26?)
 static void parser_assignment(void){
 
-    expect(TOKEN_IDENTIFIER);   //token = platny nazov premennej?
+    if(current_token.type != TOKEN_IDENTIFIER){
+        syntax_error();
+    }
+
+    char *var_name = current_token.attribute;
+    fetch_token();
+
+
+    Symboldata *var_data = NULL;
+
+    for(int level = current_scope_level; level >= 0; level--){
+        char lookup_key[256];
+        snprintf(lookup_key, sizeof(lookup_key), "%d$%s", level, var_name);
+
+        var_data = lookup_var(level, lookup_key, current_symtable);
+        if(var_data != NULL){
+            break;
+        }
+    }
+    
+    if(var_data == NULL){
+        fprintf(stderr, "semantic error: variable '%s' was not declared\n", var_name);
+        exit(4);
+    }
+
     expect(TOKEN_ASSIGN);       //nasleduje operator priradenia?
 
     parse_expression();
@@ -80,6 +119,8 @@ static void parser_assignment(void){
     expect(TOKEN_EOL);        //kocni prikaz podkociarkou?
     
 }
+
+
 
 // deklaration of var/val
 static void parse_var_declaration(void){
@@ -91,11 +132,28 @@ static void parse_var_declaration(void){
         syntax_error();
     }
 
-    expect(TOKEN_IDENTIFIER);
+    if(current_token.type != TOKEN_IDENTIFIER){
+        syntax_error();
+    }
+
+    char *var_name = current_token.attribute;
+    fetch_token();
+
+    Datatype var_type = TYPE_ANY;
+
 
     if(current_token.type == TOKEN_COLON){
         fetch_token();
-        if(current_token.type == TOKEN_KW_INT || current_token.type == TOKEN_KW_DOUBLE_TYPE || current_token.type == TOKEN_KW_STRING_TYPE){
+        if(current_token.type == TOKEN_KW_INT){
+            var_type = TYPE_INT;
+            fetch_token();
+        }
+        else if(current_token.type == TOKEN_KW_DOUBLE_TYPE){
+            var_type = TYPE_DOUBLE;
+            fetch_token();
+        }
+        else if(current_token.type == TOKEN_KW_STRING_TYPE){
+            var_type = TYPE_STRING;
             fetch_token();
         }
         else{
@@ -105,6 +163,12 @@ static void parse_var_declaration(void){
     expect(TOKEN_ASSIGN);
     parse_expression();
     expect(TOKEN_EOL);
+
+    
+    if(!insert_var(current_symtable, var_name, var_type, current_scope_level)){
+        fprintf(stderr, "semantic error: variable '%s' already declared in this scope\n", var_name);
+        exit(3);
+    }
 }
 
 
@@ -115,7 +179,10 @@ static void parse_if(void){
 
     if(current_token.type == TOKEN_LBRACKET){
         fetch_token();
+        current_scope_level++;
         parser_statements();
+        exit_scope(current_scope_level, current_symtable);
+        current_scope_level--;
         expect(TOKEN_RBRACKET);
     }
     else{
@@ -127,7 +194,10 @@ static void parse_if(void){
 
         if(current_token.type == TOKEN_LBRACKET){
             fetch_token();
+            current_scope_level++;
             parser_statements();
+            exit_scope(current_scope_level, current_symtable);
+            current_scope_level--;
             expect(TOKEN_RBRACKET);
         }
         else{
@@ -144,8 +214,10 @@ static void parse_while(void){
 
     if(current_token.type == TOKEN_LBRACKET){
         fetch_token();
-
+        current_scope_level++;
         parser_statements();
+        exit_scope(current_scope_level, current_symtable);
+        current_scope_level--;
         expect(TOKEN_RBRACKET);
     }
     else{
@@ -213,26 +285,45 @@ static void parse_parameter_list(int is_main){
     
     expect(TOKEN_LPAREN);
 
-    int param_count = 0;
+    current_param_count = 0;
 
     while(current_token.type != TOKEN_RPAREN && current_token.type != TOKEN_EOF){
-        param_count++;
+        if(current_param_count >= MAX_PARAMS){
+            fprintf(stderr, "semantic error: too many parameters\n");
+            exit(6);
+        }
 
-        expect(TOKEN_IDENTIFIER);
+        if(current_token.type != TOKEN_IDENTIFIER){
+            syntax_error();
+        }
 
-        expect(TOKEN_COLON);
+        current_params[current_param_count].name = current_token.attribute;
+        fetch_token();
 
-        if(current_token.type == TOKEN_KW_INT || current_token.type == TOKEN_KW_DOUBLE_TYPE || current_token.type == TOKEN_KW_STRING_TYPE){
+        expect (TOKEN_COLON);
+
+        if(current_token.type == TOKEN_KW_INT){
+            current_params[current_param_count].type = TYPE_INT;
+            fetch_token();
+        }
+        else if(current_token.type == TOKEN_KW_DOUBLE_TYPE){
+            current_params[current_param_count].type = TYPE_DOUBLE;
+            fetch_token();
+        }
+        else if(current_token.type == TOKEN_KW_STRING_TYPE){
+            current_params[current_param_count].type = TYPE_STRING;
             fetch_token();
         }
         else{
             syntax_error();
         }
 
+        current_param_count++;
+
         if(current_token.type == TOKEN_COMMA){
-            fetch_token();
+            syntax_error();
         }
-        else if(current_token.type != TOKEN_RPAREN){
+        else if(current_token.type == TOKEN_RPAREN){
             syntax_error();
         }
     }
@@ -240,7 +331,7 @@ static void parse_parameter_list(int is_main){
     expect(TOKEN_RPAREN);
     
 
-    if(is_main && param_count > 0){
+    if(is_main && current_param_count > 0){
         fprintf(stderr, "semtantic error: msin function can not have parameters\n");
         exit(5);
     }
@@ -265,24 +356,70 @@ static void parse_function(void){
 
     expect(TOKEN_KW_DEF);
 
-    expect(TOKEN_IDENTIFIER);
+    if(current_token.type != TOKEN_IDENTIFIER){
+        syntax_error();
+    }
+
+    char *func_name = current_token.attribute;
+    fetch_token();
     
     parse_parameter_list(is_main);
+
+    Datatype return_type = TYPE_UNIT;
 
     if(current_token.type == TOKEN_COLON){
         fetch_token();
         
-        if(current_token.type == TOKEN_KW_INT || current_token.type == TOKEN_KW_DOUBLE_TYPE || current_token.type == TOKEN_KW_STRING_TYPE || current_token.type == TOKEN_KW_UNIT){
-        fetch_token();
+        if(current_token.type == TOKEN_KW_INT){
+            return_type = TYPE_INT;
+            fetch_token();
         }
-
+        else if(current_token.type == TOKEN_KW_DOUBLE_TYPE){
+            return_type = TYPE_DOUBLE;
+            fetch_token();
+        }
+        else if(current_token.type == TOKEN_KW_STRING_TYPE){
+            return_type = TYPE_STRING;
+            fetch_token();
+        }
+        else if(current_token.type == TOKEN_KW_UNIT){
+            return_type = TYPE_UNIT;
+            fetch_token();
+        }
         else{
             syntax_error();
         }
     }
+
+    Datatype *param_types = NULL;
+
+    if(current_param_count > 0){
+        param_types = malloc(sizeof(Datatype) * current_param_count);
+        for(int i = 0; i < current_param_count; i++){
+            param_types[i] = current_params[i].type;
+        }
+    }
+
+    if(!insert_func(current_symtable, func_name, return_type, current_param_count, param_types)){
+        fprintf(stderr, "semantic error: function '%s' already defined\n", func_name);
+        exit(3);
+    }
     
+    if(param_types != NULL){
+        free(param_types);
+    }
+
+
+    for(int i = 0; i < current_param_count; i++){
+        if(!insert_var(current_symtable, current_params[i].name,current_params[i].type, current_scope_level)){
+            fprintf(stderr, "semantic error: parameter '%s' redefinition\n", current_params[i].name);
+        }
+    }
     expect(TOKEN_ASSIGN);
     parser_statements();
+
+    exit_scope(current_scope_level, current_symtable);
+    current_scope_level--;
 }
 
 
