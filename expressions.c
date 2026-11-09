@@ -2,7 +2,9 @@
  * Autor: Veronika Kentošová(xkentov00)
  * implementácia precedenčnej analýzy výrazov
  */
-
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include "stack.h"
 #include "expressions.h"
  //inspo: https://www.geeksforgeeks.org/compiler-design/role-of-operator-precedence-parser/
@@ -82,4 +84,62 @@ static PrecSymbol token_to_symbol(Token *token){
          break;
       default : return SYM_DOLLAR;
    }
- }
+}
+//pomocne funkcie pre AST
+
+//vytvori uzol pre literal alebo premennu
+ExprNode* create_leaf(NodeType nodetype, DataType datatype, const char *value){
+   ExprNode *NewNode = (ExprNode*) malloc(sizeof(struct ExprNode));
+   if(NewNode == NULL){
+      return NULL;
+   }
+   NewNode->nodetype = nodetype;
+   NewNode->datatype = datatype;
+   NewNode->symbol = SYM_ID;
+   NewNode->left = NULL;
+   NewNode->right = NULL;
+
+   strncpy(NewNode->value,value,sizeof(NewNode->value)-1);
+   NewNode->value[sizeof(NewNode->value)-1] = '\0';
+
+   return NewNode;
+}
+
+//vytvori uzol pre unarny operator 
+ExprNode* create_unary(PrecSymbol symbol, ExprNode *child, DataType datatype){
+   ExprNode *NewNode = (ExprNode*)malloc(sizeof(struct ExprNode));
+   if(NewNode == NULL){
+      return NULL;
+   }
+   NewNode->nodetype = NODE_UNARY;
+   NewNode->symbol = symbol;
+   NewNode->left = child;
+   NewNode->right = NULL;
+   NewNode->datatype = datatype;
+   NewNode->value[0] = '\0';
+   return NewNode;
+}
+
+//vytvori uzol pre binarny operator 
+ExprNode* create_binary(PrecSymbol symbol, ExprNode *left, ExprNode *right, DataType datatype){
+   ExprNode *NewNode = (ExprNode*)malloc(sizeof(struct ExprNode));
+   if(NewNode == NULL){
+      return NULL;
+   }
+   NewNode->nodetype = NODE_BINARY;
+   NewNode->symbol = symbol;
+   NewNode->left = left;
+   NewNode->right = right;
+   NewNode->datatype = datatype;
+   NewNode->value[0] = '\0';
+   return NewNode;
+}
+
+//uvolni podstrom
+void expr_free(ExprNode *node){
+   if(node == NULL)
+      return;
+   expr_free(node->left);
+   expr_free(node->right);
+   free(node);
+}
