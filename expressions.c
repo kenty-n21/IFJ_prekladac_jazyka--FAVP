@@ -18,6 +18,8 @@
 
 #define PREC_TABLE_SIZE (SYM_DOLLAR + 1)
 
+
+//Precedencna tabuulka vyrazov
 static const PrecAction prec_table[PREC_TABLE_SIZE][PREC_TABLE_SIZE] = {
     //               + u-  -  *  /  <  > <= >= == !=  (  )  id $
     /* + */         {R, S, R, S, S, R, R, R, R, R, R, S, R, S, R},
@@ -143,3 +145,7 @@ void expr_free(ExprNode *node){
    expr_free(node->right);
    free(node);
 }
+
+
+//redukcna funkcia
+int reduce(TStack *stack){}

@@ -19,6 +19,7 @@
 #include <stdlib.h>     //na alokaciu
 #include <stdbool.h>    //True a False
 #include "stack.h"
+#include "symtable.h"
 
 //inicializácia zásobníka
 void init_stack(TStack *s){
