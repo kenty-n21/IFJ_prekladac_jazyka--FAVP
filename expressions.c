@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "stack.h"
+#include "symtable.h"
 #include "expressions.h"
  //inspo: https://www.geeksforgeeks.org/compiler-design/role-of-operator-precedence-parser/
  //inspo: https://compilerdesigndetails.blogspot.com/2012/02/operator-precedence-parsing.html
@@ -44,53 +45,40 @@ static PrecSymbol token_to_symbol(Token *token){
    switch (token->type){
       case TOKEN_PLUS:
          return SYM_PLUS;
-         break;
       case TOKEN_MINUS:
          return SYM_MINUS;
-         break;
       case TOKEN_MUL:
          return SYM_MUL;
-         break;
       case TOKEN_DIV:
          return SYM_DIV;
-         break;
       case TOKEN_LT:
          return SYM_LT;
-         break;
       case TOKEN_GT:
          return SYM_GT;
-         break;
       case TOKEN_LTE:
          return SYM_LTE;
-         break;
       case TOKEN_GTE:
          return SYM_GTE;
-         break;
       case TOKEN_EQ:
          return SYM_EQ;
-         break;
       case TOKEN_NEQ:
          return SYM_NEQ;
-         break;
       case TOKEN_LPAREN:
          return SYM_LPAR;
-         break;
       case TOKEN_RPAREN:
          return SYM_RPAR;
-         break;
       case TOKEN_IDENTIFIER: 
       case TOKEN_INTEGER:
       case TOKEN_DOUBLE:
       case TOKEN_STRING:
          return SYM_ID;
-         break;
       default : return SYM_DOLLAR;
    }
 }
 //pomocne funkcie pre AST
 
 //vytvori uzol pre literal alebo premennu
-ExprNode* create_leaf(NodeType nodetype, DataType datatype, const char *value){
+ExprNode* create_leaf(NodeType nodetype, Datatype datatype, const char *value){
    ExprNode *NewNode = (ExprNode*) malloc(sizeof(struct ExprNode));
    if(NewNode == NULL){
       return NULL;
@@ -108,7 +96,7 @@ ExprNode* create_leaf(NodeType nodetype, DataType datatype, const char *value){
 }
 
 //vytvori uzol pre unarny operator 
-ExprNode* create_unary(PrecSymbol symbol, ExprNode *child, DataType datatype){
+ExprNode* create_unary(PrecSymbol symbol, ExprNode *child, Datatype datatype){
    ExprNode *NewNode = (ExprNode*)malloc(sizeof(struct ExprNode));
    if(NewNode == NULL){
       return NULL;
@@ -123,7 +111,7 @@ ExprNode* create_unary(PrecSymbol symbol, ExprNode *child, DataType datatype){
 }
 
 //vytvori uzol pre binarny operator 
-ExprNode* create_binary(PrecSymbol symbol, ExprNode *left, ExprNode *right, DataType datatype){
+ExprNode* create_binary(PrecSymbol symbol, ExprNode *left, ExprNode *right, Datatype datatype){
    ExprNode *NewNode = (ExprNode*)malloc(sizeof(struct ExprNode));
    if(NewNode == NULL){
       return NULL;

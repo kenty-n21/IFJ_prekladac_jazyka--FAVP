@@ -6,6 +6,7 @@
 #ifndef STACK_H
 #define STACK_H
 #include <stdbool.h>
+#include "symtable.h"
 
 //Prompt : "Aké typy dát je vhodné definovať pre precedenčnú analýzu"
 
@@ -30,19 +31,9 @@ typedef enum{
     SYM_STOP
 }PrecSymbol;
 
-//dátové typy pre sémantickú kontrolu
-typedef enum{
-    TYPE_INT,
-    TYPE_DOUBLE,
-    TYPE_STRING,
-    TYPE_BOOL,
-    TYPE_UNIT,
-    TYPE_UNDEFINED
-}DataType;
-
 
 typedef struct TSData{
-    DataType type;
+    Datatype type;
     PrecSymbol symbol;
     struct ExprNode *node;
 }TSData;
