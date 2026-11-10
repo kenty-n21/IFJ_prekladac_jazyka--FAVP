@@ -23,7 +23,7 @@ typedef enum {
 
 //Abstraktný syntaktický strom - AST
 typedef enum{
-    NODE_LITERAL,       //literal
+    NODE_LITERAL,       // literal
     NODE_VAR,           // identifikator premennej
     NODE_UNARY,         // unarny operator
     NODE_BINARY         // binarny operator
@@ -44,7 +44,7 @@ typedef struct ExprNode{
  * Po návrate je aktuálny token prvý, ktorý už k výrazu nepatrí.
  * Vracia 0 alebo chybový kód (1, 2, 3, 6 ...).
  */
-int parse_expression(ExprNode **root, Datatype *type);
+int parse_expression(Token* current_token, ExprNode **root, Datatype *type);
 
 void expr_free(ExprNode *root);
 

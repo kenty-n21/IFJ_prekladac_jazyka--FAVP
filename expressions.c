@@ -212,7 +212,7 @@ void expr_free(ExprNode *node){
 
 
 
-//redukcna funkcia
+//redukcna funkcia podla definovanzch pravidiel
 int reduce(TStack *stack){
    TSElem *Current = stack->top;
    TSData arr[3];
@@ -292,14 +292,154 @@ int reduce(TStack *stack){
       }
       //pripad B: E-> E1 op E2
       else if(arr[0].symbol == SYM_NONTERM && is_binary_op(arr[1].symbol) && arr[2].symbol == SYM_NONTERM){
-         //kontrola semantiky 
+         //kontrola semantiky pomocou vytvorenenj funkcie
+         Datatype result_type;
+         int err = semantic_check(arr[1].symbol, arr[2].type, arr[0].type, &result_type);
+         if(err != NO_ERROR){
+            return err;
+         } 
 
+         //vytvorenie uzlu stromu
+         ExprNode *Node = create_binary(arr[1].symbol, arr[2].node, arr[0].node, result_type);
+         //kontrola pamate
+         if(Node == NULL)
+            return ERROR_INTERNAL;
+
+         reduced.symbol = SYM_NONTERM;
+         reduced.type = result_type;
+         reduced.node = Node;
+         push_stack(stack,reduced);
+         return NO_ERROR;
       }
       else{
          return ERROR_SYNT;
       }
-   default:
-      break;
+   default: return ERROR_SYNT;
+   }
+}
+
+
+//hlavna funkcia precedencnej analyzy vyrazov - funkcia parse expression
+int parse_expression(Token *current_token, ExprNode **root, Datatype *type){
+   //inicializacia zadobnika
+   TStack stack;
+   init_stack(&stack);
+
+   //vlozenie $ na spodok zasobnika
+   TSData dollar;
+   dollar.symbol = SYM_DOLLAR;
+   dollar.type = TYPE_ANY;
+   dollar.node = NULL;
+   if(!push_stack(&stack,dollar)){
+      return ERROR_INTERNAL;
    }
 
+   //zabezpecenie spravnosti pre unarne minus
+   bool expecting_operand = true;
+
+   while(true){
+      TSElem *top_elem = get_topterminal_stack(&stack);
+      PrecSymbol top_terminal = top_elem->data.symbol;
+
+      PrecSymbol input_symbol = token_to_symbol(current_token);
+
+      //osetrenie unarneho minusu
+      if(input_symbol == SYM_MINUS && expecting_operand){
+         input_symbol = SYM_UNARY_MIN;
+      }
+
+      //overenie konca
+      if(top_terminal == SYM_DOLLAR && input_symbol == SYM_DOLLAR){
+            top_elem = top_stack(&stack);
+         if(top_elem->data.symbol == SYM_NONTERM){
+            *root = top_elem->data.node;
+            *type = top_elem->data.type;
+            free_stack(&stack);
+            return NO_ERROR;
+         }else{
+            free_stack(&stack);
+            return ERROR_SYNT;
+         }
+      }
+
+      PrecAction action = prec_table[top_terminal][input_symbol];
+
+      TSData data;
+      data.symbol = input_symbol;
+      data.node = NULL;
+      data.type = TYPE_ANY;
+
+      switch (action)
+      {
+      // <
+      case PREC_SHIFT:
+         //podla floydovej analyzy vlozime zarazku
+         insert_terminal_stop_stack(&stack);
+
+         if( data.symbol == SYM_ID ){
+            switch (current_token->type)
+            {
+            case TOKEN_INTEGER:
+               data.node = create_leaf(NODE_LITERAL, TYPE_INT, current_token->attribute);
+               data.type = TYPE_INT;
+               break;
+            case TOKEN_DOUBLE:
+               data.node = create_leaf(NODE_LITERAL, TYPE_DOUBLE, current_token->attribute);
+               data.type = TYPE_DOUBLE;
+               break;
+            case TOKEN_STRING:
+               data.node = create_leaf(NODE_LITERAL, TYPE_STRING, current_token->attribute);
+               data.type = TYPE_STRING;
+               break;
+            case TOKEN_IDENTIFIER:
+               data.node = create_leaf(NODE_VAR, TYPE_ANY, current_token->attribute);
+               data.type = TYPE_ANY;
+               break;
+            default:
+               break;
+            }
+            //kedze sme nacitali cislo alebo premennu a podobne uz neocakavame dasi operand
+            expecting_operand = false;
+         }else
+            //ak to budu +, - , * , / , ( ,....
+            expecting_operand = true;
+         
+         if(!push_stack(&stack, data)){
+            free_stack(&stack);
+            return ERROR_INTERNAL;
+         }  
+         //nacitanie dlasieho tokenu
+         *current_token = get_next_token();
+         if(current_token->type == TOKEN_ERROR){
+            free_stack(&stack);
+            return ERROR_LEX;
+         }
+         break;
+      // > 
+      case PREC_REDUCE:
+         int err = reduce(&stack);
+         if(err != NO_ERROR){
+            free_stack(&stack);
+            return err;
+         }
+         break;
+      // =
+      case PREC_EQUAL:
+         push_stack(&stack,data);
+         expecting_operand = false;
+
+         //nacitanie dalsieho tokenu
+         *current_token = get_next_token();
+         if(current_token->type == TOKEN_ERROR){
+            free_stack(&stack);
+            return ERROR_LEX;
+         }
+         break;
+      // X
+      case PREC_ERROR:
+      default:
+         free_stack(&stack);
+         return ERROR_SYNT;
+      }
+   }
 }
