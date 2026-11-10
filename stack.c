@@ -43,7 +43,7 @@ bool insert_terminal_stop_stack(TStack *s){
     if (NewElemPtr == NULL)
         return false;
     NewElemPtr->data.symbol = SYM_STOP;
-    NewElemPtr->data.type = TYPE_UNDEFINED;
+    NewElemPtr->data.type = TYPE_ANY;
     NewElemPtr->data.node = NULL;
 
     TSElem *PrevElem, *CurrElem;

@@ -31,7 +31,7 @@ typedef enum{
 
 typedef struct ExprNode{
     NodeType nodetype;
-    DataType datatype;
+    Datatype datatype;
     PrecSymbol symbol;
     char value[1024];
     
@@ -44,7 +44,7 @@ typedef struct ExprNode{
  * Po návrate je aktuálny token prvý, ktorý už k výrazu nepatrí.
  * Vracia 0 alebo chybový kód (1, 2, 3, 6 ...).
  */
-int parse_expression(ExprNode **root, DataType *type);
+int parse_expression(ExprNode **root, Datatype *type);
 
 void expr_free(ExprNode *root);
 
