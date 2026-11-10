@@ -363,11 +363,7 @@ int parse_expression(Token *current_token, ExprNode **root, Datatype *type){
       }
 
       PrecAction action = prec_table[top_terminal][input_symbol];
-
       TSData data;
-      data.symbol = input_symbol;
-      data.node = NULL;
-      data.type = TYPE_ANY;
 
       switch (action)
       {
@@ -375,6 +371,10 @@ int parse_expression(Token *current_token, ExprNode **root, Datatype *type){
       case PREC_SHIFT:
          //podla floydovej analyzy vlozime zarazku
          insert_terminal_stop_stack(&stack);
+
+         data.symbol = input_symbol;
+         data.node = NULL;
+         data.type = TYPE_ANY;
 
          if( data.symbol == SYM_ID ){
             switch (current_token->type)
@@ -425,7 +425,15 @@ int parse_expression(Token *current_token, ExprNode **root, Datatype *type){
          break;
       // =
       case PREC_EQUAL:
-         push_stack(&stack,data);
+         data.symbol = input_symbol;
+         data.node = NULL;
+         data.type = TYPE_ANY;
+
+         if(!push_stack(&stack, data)){
+            free_stack(&stack);
+            return ERROR_INTERNAL;
+         }  
+         
          expecting_operand = false;
 
          //nacitanie dalsieho tokenu
