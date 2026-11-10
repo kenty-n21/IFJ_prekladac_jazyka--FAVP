@@ -16,9 +16,9 @@
   * este otestovat na testoch
   */
 #include <stdio.h>      // pre mozne chybove hlasnia
-#include <stdlib.h>     //na alokaciu
 #include <stdbool.h>    //True a False
 #include "stack.h"
+#include "symtable.h"
 
 //inicializácia zásobníka
 void init_stack(TStack *s){
@@ -30,8 +30,7 @@ bool push_stack(TStack *s, TSData data){
     TSElem* NewElemPtr = (TSElem *)malloc(sizeof(struct TSElem));
     if (NewElemPtr == NULL)
         return false;
-    NewElemPtr->data.symbol = data.symbol;
-    NewElemPtr->data.type = data.type;
+    NewElemPtr->data = data;
     NewElemPtr->next = s->top;
     s->top = NewElemPtr;
     return true;
@@ -43,7 +42,8 @@ bool insert_terminal_stop_stack(TStack *s){
     if (NewElemPtr == NULL)
         return false;
     NewElemPtr->data.symbol = SYM_STOP;
-    NewElemPtr->data.type = TYPE_UNDEFINED;
+    NewElemPtr->data.type = TYPE_ANY;
+    NewElemPtr->data.node = NULL;
 
     TSElem *PrevElem, *CurrElem;
     CurrElem = s->top;

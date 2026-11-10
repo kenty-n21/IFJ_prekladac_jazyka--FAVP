@@ -6,39 +6,36 @@
 #ifndef STACK_H
 #define STACK_H
 #include <stdbool.h>
+#include "symtable.h"
 
 //Prompt : "Aké typy dát je vhodné definovať pre precedenčnú analýzu"
 
 //Symboly, s ktorými pracuje precedenčná tabuľka
 typedef enum{
-    SYM_PLUS,
-    SYM_MINUS,
-    SYM_MUL,
-    SYM_DIV,
-    SYM_RPAR,
-    SYM_LPAR,
-    SYM_ID,
-    SYM_REL_OP,
-    SYM_STOP,
-    SYM_DOLLAR,
-    SYM_NONTERM
+    SYM_PLUS,       // +
+    SYM_UNARY_MIN,  // - (ako znamienko nie operacia)
+    SYM_MINUS,      // -
+    SYM_MUL,        // *
+    SYM_DIV,        // /
+    SYM_LT,         // <
+    SYM_GT,         // >
+    SYM_LTE,        // <=
+    SYM_GTE,        // >=
+    SYM_EQ,         // ==
+    SYM_NEQ,        // !=
+    SYM_LPAR,       // (
+    SYM_RPAR,       // )
+    SYM_ID,         // id
+    SYM_DOLLAR,     // $
+    SYM_NONTERM,
+    SYM_STOP
 }PrecSymbol;
-
-//dátové typy pre sémantickú kontrolu
-typedef enum{
-    TYPE_INT,
-    TYPE_DOUBLE,
-    TYPE_STRING,
-    TYPE_BOOL,
-    TYPE_UNIT,
-    TYPE_UNDEFINED
-}Datatype;
-
 
 
 typedef struct TSData{
     Datatype type;
     PrecSymbol symbol;
+    struct ExprNode *node;
 }TSData;
 
 //štrúktúra prvku v zásobníku
