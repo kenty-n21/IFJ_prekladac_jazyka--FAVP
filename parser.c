@@ -27,6 +27,10 @@ static int current_scope_level = 0;
 static ParamInfo current_params[MAX_PARAMS];
 static int current_param_count = 0;
 
+static bool main_function_found = false;
+
+static Datatype current_func_ret_type = TYPE_UNIT;
+
 //deklaration of funktions
 static void fetch_token(void);
 static void expect(TokenType expect_type);
@@ -34,13 +38,13 @@ static void syntax_error(void);
 static void parse_prolog(void);
 static void parse_function(void);
 static void parser_statements(void);
-static void parser_assignment(void);
+static void parser_assignment(char *var_name);
 static void parse_var_declaration(void);
 static void parse_parameter_list(int is_main);
 static void parse_if(void);
 static void parse_while(void);
 static void parse_return(void);
-
+static void parse_function_call(char *func_name);
 
 
 
@@ -85,17 +89,9 @@ static void parse_prolog(void){
 
 
 //kotrola pre prikaz: priradenie hodnoty do premennej (zodpoveda kod pravidlam IFJ26?)
-static void parser_assignment(void){
+static void parser_assignment(char *var_name){
 
-    if(current_token.type != TOKEN_IDENTIFIER){
-        syntax_error();
-    }
-
-    char *var_name = current_token.attribute;
-    fetch_token();
-
-
-    Symboldata *var_data = NULL;
+    Symboldata *var_data = NULL;    
 
     for(int level = current_scope_level; level >= 0; level--){
         char lookup_key[256];
@@ -112,12 +108,16 @@ static void parser_assignment(void){
         exit(4);
     }
 
-    expect(TOKEN_ASSIGN);       //nasleduje operator priradenia?
+    expect(TOKEN_ASSIGN);       
 
-    parse_expression();
+    Datatype expr_type = parse_expression();
+
+    if(var_data->typ != TYPE_ANY && expr_type != TYPE_ANY && var_data->typ != expr_type){
+        fprintf(stderr, "semantic error: type mismatch in assignment to variable '%s' (variable: %d, expression %d)\n", var_name, var_data->typ, expr_type);
+        exit(4);
+    }
     
-    expect(TOKEN_EOL);        //kocni prikaz podkociarkou?
-    
+    expect(TOKEN_EOL);        
 }
 
 
@@ -229,12 +229,21 @@ static void parse_while(void){
 static void parse_return(void){
     expect(TOKEN_KW_RETURN);
 
+    Datatype expr_type = TYPE_UNIT;
+
     if(current_token.type != TOKEN_EOL && current_token.type != 3 && current_token.type != TOKEN_RBRACKET && current_token.type != TOKEN_EOF){
-        parse_expression();
+        expr_type = parse_expression();
+    }
+
+    if(current_func_ret_type != TYPE_ANY && expr_type != TYPE_ANY && current_func_ret_type != expr_type){
+        fprintf(stderr, "semantic error: return type mismatch\n");
+        exit(6);
     }
 
     expect(TOKEN_EOL);
 }
+
+
 
 
 static void parser_statements(void){
@@ -248,9 +257,24 @@ static void parser_statements(void){
             parse_var_declaration();
             break;
 
-        case TOKEN_IDENTIFIER:
-            parser_assignment();
+
+        case TOKEN_IDENTIFIER:{
+            char *id_name = current_token.attribute;
+            fetch_token();
+
+            if(current_token.type == TOKEN_LPAREN){
+                parse_function_call(id_name);
+                expect(TOKEN_EOL);
+            }
+            else if (current_token.type == TOKEN_ASSIGN){
+                parser_assignment(id_name);
+            }
+            else{
+                syntax_error();
+            }
             break;
+        }
+            
 
         case TOKEN_KW_IF:
             parse_if();
@@ -321,9 +345,9 @@ static void parse_parameter_list(int is_main){
         current_param_count++;
 
         if(current_token.type == TOKEN_COMMA){
-            syntax_error();
+            fetch_token();
         }
-        else if(current_token.type == TOKEN_RPAREN){
+        else if(current_token.type != TOKEN_RPAREN){
             syntax_error();
         }
     }
@@ -338,6 +362,58 @@ static void parse_parameter_list(int is_main){
 }
 
 
+
+static Symboldata *lookup_func(symtable *t, char *func_name){
+
+    return lookup_var(0, func_name, t);
+}
+
+
+
+static void parse_function_call(char *func_name){
+    
+    expect(TOKEN_LPAREN);
+
+    Symboldata *func_data = lookup_func(current_symtable, func_name);
+
+    if(func_data == NULL || !func_data->is_function){
+        fprintf(stderr, "sematic error: function '%s' was not declared\n", func_name);
+        exit(3);
+    }
+
+    int arg_count = 0;
+
+    while(current_token.type != TOKEN_RPAREN && current_token.type != TOKEN_EOF){
+        Datatype arg_type = parse_expression();
+
+        if(arg_count < func_data->param_count){
+            if(func_data->param_type[arg_count] != TYPE_ANY && arg_type != TYPE_ANY && func_data->param_type[arg_count] != arg_type){
+                fprintf(stderr, "semantic error: type mismatch in argument %d of function '%s'\n", arg_count+1, func_name);
+                exit(4);
+            }
+        }
+
+        arg_count++;
+
+        if (current_token.type == TOKEN_COMMA){
+            fetch_token();
+        }
+        else if (current_token.type != TOKEN_RPAREN){
+            syntax_error();
+        }
+    }
+
+    expect (TOKEN_RPAREN);
+
+    if(arg_count != func_data->param_count){
+        fprintf(stderr, "semantic error: function '%s' expects %d arguments, but only %d were provided\n", func_name, func_data->param_count, arg_count);
+        exit(6);
+    }
+}
+
+
+
+
 static void parse_function(void){
 
     int is_main = 0;
@@ -348,6 +424,7 @@ static void parse_function(void){
         if(strcmp(current_token.attribute, "main") == 0){
             fetch_token();
             is_main = 1;
+            main_function_found = true;
         }
         else{
             syntax_error();
@@ -391,6 +468,8 @@ static void parse_function(void){
         }
     }
 
+    current_func_ret_type = return_type; // ulozenie navratoveho tyou pre kontrolu v return
+
     Datatype *param_types = NULL;
 
     if(current_param_count > 0){
@@ -413,6 +492,7 @@ static void parse_function(void){
     for(int i = 0; i < current_param_count; i++){
         if(!insert_var(current_symtable, current_params[i].name,current_params[i].type, current_scope_level)){
             fprintf(stderr, "semantic error: parameter '%s' redefinition\n", current_params[i].name);
+            exit(3);
         }
     }
     expect(TOKEN_ASSIGN);
@@ -425,7 +505,7 @@ static void parse_function(void){
 
 int parser_program(void){
     
-    fetch_token();  //nacitanie prveho tokenu
+    fetch_token();  
     parse_prolog();
     
     
@@ -442,6 +522,11 @@ int parser_program(void){
             syntax_error();
         }
     
+    }
+
+    if(!main_function_found){
+        fprintf(stderr, "sematic error: program is missing @main function\n");
+        exit(5);
     }
     
     return 0;
