@@ -2,9 +2,7 @@
  * Autor: Veronika Kentošová(xkentov00)
  * implementácia precedenčnej analýzy výrazov
  */
-#include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 #include "stack.h"
 #include "symtable.h"
 #include "expressions.h"
@@ -433,7 +431,7 @@ int parse_expression(Token *current_token, ExprNode **root, Datatype *type){
             free_stack(&stack);
             return ERROR_INTERNAL;
          }  
-         
+
          expecting_operand = false;
 
          //nacitanie dalsieho tokenu
