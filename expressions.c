@@ -414,13 +414,14 @@ int parse_expression(Token *current_token, ExprNode **root, Datatype *type){
          }
          break;
       // > 
-      case PREC_REDUCE:
+      case PREC_REDUCE:{
          int err = reduce(&stack);
          if(err != NO_ERROR){
             free_stack(&stack);
             return err;
          }
          break;
+      }
       // =
       case PREC_EQUAL:
          data.symbol = input_symbol;
