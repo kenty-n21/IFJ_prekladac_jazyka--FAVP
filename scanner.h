@@ -30,6 +30,7 @@ typedef enum {
     TOKEN_INTEGER,          // Celociselny literal (Int)
     TOKEN_DOUBLE,           // Desatinny literal (Double)
     TOKEN_STRING,           // Retazcovy literal (String)
+    TOKEN_INTERP_STRING,    // Interpolovany retazec s"..." (pre rozsirenie INTERPOLATEDS)
 
     // Zakladne klucove slova [sekcia 1.1]
     TOKEN_KW_DEF,           // def
