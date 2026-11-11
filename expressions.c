@@ -17,6 +17,8 @@
 
 #define PREC_TABLE_SIZE (SYM_DOLLAR + 1)
 
+extern symtable *current_symtable;
+
 
 //Precedencna tabuulka vyrazov
 static const PrecAction prec_table[PREC_TABLE_SIZE][PREC_TABLE_SIZE] = {

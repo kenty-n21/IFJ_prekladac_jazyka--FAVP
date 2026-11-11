@@ -1,12 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "string.h"
+#include <string.h>
 
 #include "parser.h"
 #include "scanner.h"        //cooperation with scanner
 #include "stack.h"
 #include "hashtable.h"
 #include "symtable.h"
+#include "expressions.h"
 
 #define MAX_PARAMS 32
 
@@ -52,6 +53,11 @@ static void parse_function_call(char *func_name);
 static void fetch_token(void){  
 
     current_token = get_next_token();
+
+    printf("DEBUG: načítaný token -> typ: %d, hodnota/atribut: %s\n", 
+           current_token.type, 
+           current_token.attribute[0] != '\0' ? current_token.attribute : "žiadna");
+
 
 }
 
@@ -110,7 +116,13 @@ static void parser_assignment(char *var_name){
 
     expect(TOKEN_ASSIGN);       
 
-    Datatype expr_type = parse_expression();
+    ExprNode *expr_root = NULL;
+    Datatype expr_type = TYPE_ANY;
+
+    int epx_err = parse_expression(&current_token, &expr_root, &expr_type);
+    if(epx_err != 0){
+        exit(epx_err);
+    }
 
     if(var_data->typ != TYPE_ANY && expr_type != TYPE_ANY && var_data->typ != expr_type){
         fprintf(stderr, "semantic error: type mismatch in assignment to variable '%s' (variable: %d, expression %d)\n", var_name, var_data->typ, expr_type);
@@ -136,7 +148,12 @@ static void parse_var_declaration(void){
         syntax_error();
     }
 
-    char *var_name = current_token.attribute;
+    char *var_name = malloc(strlen(current_token.attribute)+1);
+    if(var_name == NULL){
+        exit(99);
+    }
+    strcpy(var_name, current_token.attribute);
+
     fetch_token();
 
     Datatype var_type = TYPE_ANY;
@@ -161,21 +178,38 @@ static void parse_var_declaration(void){
         }
     }
     expect(TOKEN_ASSIGN);
-    parse_expression();
+    ExprNode *expr_root = NULL;
+    Datatype expr_type = TYPE_ANY;
+    int expr_err = parse_expression(&current_token, &expr_root, &expr_type);
+    if(expr_err != 0){
+        exit(expr_err);
+    }
+
     expect(TOKEN_EOL);
 
+    Datatype final_type = (var_type == TYPE_ANY) ? expr_type : var_type;
     
-    if(!insert_var(current_symtable, var_name, var_type, current_scope_level)){
+    if(!insert_var(current_symtable, var_name, final_type, current_scope_level)){
         fprintf(stderr, "semantic error: variable '%s' already declared in this scope\n", var_name);
+        free(var_name);
         exit(3);
     }
+
+    free(var_name);
 }
 
 
 static void parse_if(void){
     expect(TOKEN_KW_IF);
 
-    parse_expression();
+    
+    ExprNode *expr_root = NULL;
+    Datatype expr_type = TYPE_ANY;
+    int expr_err = parse_expression(&current_token, &expr_root, &expr_type);
+    if(expr_err != 0){
+        exit(expr_err);
+    }
+
 
     if(current_token.type == TOKEN_LBRACKET){
         fetch_token();
@@ -208,9 +242,15 @@ static void parse_if(void){
 
 
 static void parse_while(void){
+    printf("DEBUG: vstupujem do parse_while, aktuálny token: %d\n", current_token.type);
     expect(TOKEN_KW_WHILE);
 
-    parse_expression();
+    ExprNode *expr_root = NULL;
+    Datatype expr_type = TYPE_ANY;
+    int expr_err = parse_expression(&current_token, &expr_root, &expr_type);
+    if(expr_err != 0){
+        exit(expr_err);
+    }
 
     if(current_token.type == TOKEN_LBRACKET){
         fetch_token();
@@ -229,13 +269,19 @@ static void parse_while(void){
 static void parse_return(void){
     expect(TOKEN_KW_RETURN);
 
+    ExprNode *expr_root = NULL;
     Datatype expr_type = TYPE_UNIT;
+    
 
     if(current_token.type != TOKEN_EOL && current_token.type != 3 && current_token.type != TOKEN_RBRACKET && current_token.type != TOKEN_EOF){
-        expr_type = parse_expression();
+        int expr_err = parse_expression(&current_token, &expr_root, &expr_type);
+        if(expr_err != 0 ){
+            exit(expr_err);
+        }
     }
 
     if(current_func_ret_type != TYPE_ANY && expr_type != TYPE_ANY && current_func_ret_type != expr_type){
+        fprintf(stderr, "DEBUG 6A: return type mismatch\n");
         fprintf(stderr, "semantic error: return type mismatch\n");
         exit(6);
     }
@@ -247,6 +293,8 @@ static void parse_return(void){
 
 
 static void parser_statements(void){
+
+    printf("DEBUG: vstupujem do parser_statements\n");
     
     while (current_token.type != TOKEN_EOF && current_token.type != TOKEN_KW_DEF && current_token.type != TOKEN_AT)
     {
@@ -259,7 +307,12 @@ static void parser_statements(void){
 
 
         case TOKEN_IDENTIFIER:{
-            char *id_name = current_token.attribute;
+            char *id_name = malloc(strlen(current_token.attribute)+1);
+            if(id_name == NULL){
+                exit(99);
+            }
+            strcpy(id_name, current_token.attribute);
+
             fetch_token();
 
             if(current_token.type == TOKEN_LPAREN){
@@ -272,6 +325,7 @@ static void parser_statements(void){
             else{
                 syntax_error();
             }
+            free(id_name);
             break;
         }
             
@@ -321,7 +375,11 @@ static void parse_parameter_list(int is_main){
             syntax_error();
         }
 
-        current_params[current_param_count].name = current_token.attribute;
+        current_params[current_param_count].name = malloc(strlen(current_token.attribute)+1);
+        if(current_params[current_param_count].name == NULL){
+            exit(99);
+        }
+        strcpy(current_params[current_param_count].name, current_token.attribute);
         fetch_token();
 
         expect (TOKEN_COLON);
@@ -384,7 +442,12 @@ static void parse_function_call(char *func_name){
     int arg_count = 0;
 
     while(current_token.type != TOKEN_RPAREN && current_token.type != TOKEN_EOF){
-        Datatype arg_type = parse_expression();
+        ExprNode *expr_root = NULL;
+        Datatype arg_type = TYPE_ANY;
+        int expr_err = parse_expression(&current_token, &expr_root, &arg_type);
+        if(expr_err != 0){
+        exit(expr_err);
+        }
 
         if(arg_count < func_data->param_count){
             if(func_data->param_type[arg_count] != TYPE_ANY && arg_type != TYPE_ANY && func_data->param_type[arg_count] != arg_type){
@@ -406,6 +469,7 @@ static void parse_function_call(char *func_name){
     expect (TOKEN_RPAREN);
 
     if(arg_count != func_data->param_count){
+        fprintf(stderr, "DEBUG 6B: arg count mismatch\n");
         fprintf(stderr, "semantic error: function '%s' expects %d arguments, but only %d were provided\n", func_name, func_data->param_count, arg_count);
         exit(6);
     }
@@ -437,7 +501,11 @@ static void parse_function(void){
         syntax_error();
     }
 
-    char *func_name = current_token.attribute;
+    char *func_name = malloc(strlen(current_token.attribute)+1);
+    if(func_name == NULL){
+        exit(99);
+    }
+    strcpy(func_name, current_token.attribute);
     fetch_token();
     
     parse_parameter_list(is_main);
@@ -459,7 +527,7 @@ static void parse_function(void){
             return_type = TYPE_STRING;
             fetch_token();
         }
-        else if(current_token.type == TOKEN_KW_UNIT){
+        else if(current_token.type == TOKEN_KW_UNIT || (current_token.type == 5 && strcmp(current_token.attribute, "unit") == 0)){
             return_type = TYPE_UNIT;
             fetch_token();
         }
@@ -479,6 +547,8 @@ static void parse_function(void){
         }
     }
 
+    fprintf(stderr, "DEBUG PARSER: Pripravujem sa vložit funkciu '%s' do symtable\n", func_name);
+
     if(!insert_func(current_symtable, func_name, return_type, current_param_count, param_types)){
         fprintf(stderr, "semantic error: function '%s' already defined\n", func_name);
         exit(3);
@@ -494,6 +564,7 @@ static void parse_function(void){
             fprintf(stderr, "semantic error: parameter '%s' redefinition\n", current_params[i].name);
             exit(3);
         }
+        free(current_params[i].name);
     }
     expect(TOKEN_ASSIGN);
     parser_statements();
@@ -504,7 +575,14 @@ static void parse_function(void){
 
 
 int parser_program(void){
+
+    current_symtable = init_hash_table();
+    if (current_symtable == NULL){
+        exit(99);
+    }
     
+    insert_included_fun(current_symtable);
+
     fetch_token();  
     parse_prolog();
     
@@ -519,6 +597,9 @@ int parser_program(void){
             fetch_token();
         }
         else{
+            fprintf(stderr, "DEBUG ERROR: Nečakaný token -> typ: %d, hodnota/atribut: %s\n", 
+            current_token.type, 
+            current_token.attribute[0] != '\0' ? current_token.attribute : "žiadna");
             syntax_error();
         }
     

@@ -16,7 +16,7 @@
 // Rezim prekladu: kym nie je hotovy parser, bezi len test scannera.
 // Ked bude parser hotovy: zakomentujte nasledujuci riadok a pridajte parser.c
 // do SRCS v Makefile.
-#define TEST_SCANNER
+
 
 #ifndef TEST_SCANNER
 #include "parser.h"
