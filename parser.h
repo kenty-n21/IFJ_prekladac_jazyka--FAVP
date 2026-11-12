@@ -1,5 +1,5 @@
 #ifndef PARSER_H
-#define PARSER
+#define PARSER_H
 
 int parser_program(void);
 

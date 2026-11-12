@@ -119,7 +119,7 @@ static void parser_assignment(char *var_name){
     ExprNode *expr_root = NULL;
     Datatype expr_type = TYPE_ANY;
 
-    int epx_err = parse_expression(&current_token, &expr_root, &expr_type);
+    int epx_err = parse_expression(&current_token, &expr_root, &expr_type, current_symtable, current_scope_level);
     if(epx_err != 0){
         exit(epx_err);
     }
@@ -180,7 +180,7 @@ static void parse_var_declaration(void){
     expect(TOKEN_ASSIGN);
     ExprNode *expr_root = NULL;
     Datatype expr_type = TYPE_ANY;
-    int expr_err = parse_expression(&current_token, &expr_root, &expr_type);
+    int expr_err = parse_expression(&current_token, &expr_root, &expr_type, current_symtable, current_scope_level);
     if(expr_err != 0){
         exit(expr_err);
     }
@@ -205,7 +205,7 @@ static void parse_if(void){
     
     ExprNode *expr_root = NULL;
     Datatype expr_type = TYPE_ANY;
-    int expr_err = parse_expression(&current_token, &expr_root, &expr_type);
+    int expr_err = parse_expression(&current_token, &expr_root, &expr_type, current_symtable, current_scope_level);
     if(expr_err != 0){
         exit(expr_err);
     }
@@ -247,7 +247,7 @@ static void parse_while(void){
 
     ExprNode *expr_root = NULL;
     Datatype expr_type = TYPE_ANY;
-    int expr_err = parse_expression(&current_token, &expr_root, &expr_type);
+    int expr_err = parse_expression(&current_token, &expr_root, &expr_type, current_symtable, current_scope_level);
     if(expr_err != 0){
         exit(expr_err);
     }
@@ -274,7 +274,7 @@ static void parse_return(void){
     
 
     if(current_token.type != TOKEN_EOL && current_token.type != 3 && current_token.type != TOKEN_RBRACKET && current_token.type != TOKEN_EOF){
-        int expr_err = parse_expression(&current_token, &expr_root, &expr_type);
+        int expr_err = parse_expression(&current_token, &expr_root, &expr_type, current_symtable, current_scope_level);
         if(expr_err != 0 ){
             exit(expr_err);
         }
@@ -444,7 +444,7 @@ static void parse_function_call(char *func_name){
     while(current_token.type != TOKEN_RPAREN && current_token.type != TOKEN_EOF){
         ExprNode *expr_root = NULL;
         Datatype arg_type = TYPE_ANY;
-        int expr_err = parse_expression(&current_token, &expr_root, &arg_type);
+        int expr_err = parse_expression(&current_token, &expr_root, &arg_type, current_symtable, current_scope_level);
         if(expr_err != 0){
         exit(expr_err);
         }

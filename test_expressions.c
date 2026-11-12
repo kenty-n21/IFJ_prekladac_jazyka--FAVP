@@ -82,7 +82,7 @@ static int run_test(Token *tokens, int count, Datatype expected_type, ExprNode *
     ExprNode *root = NULL;
     Datatype type;
 
-    int err = parse_expression(&curr, &root, &type);
+    int err = parse_expression(&curr, &root, &type, NULL, 0);
     if (err == NO_ERROR) {
         assert(type == expected_type);
         if (out_root != NULL) {
@@ -104,7 +104,7 @@ static void assert_error(Token *tokens, int count, int expected_error) {
     Token curr = get_next_token();
     ExprNode *root = NULL;
     Datatype type;
-    int err = parse_expression(&curr, &root, &type);
+    int err = parse_expression(&curr, &root, &type, NULL, 0);
     if (root != NULL) {
         expr_free(root);
     }

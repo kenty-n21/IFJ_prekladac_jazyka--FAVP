@@ -4,6 +4,7 @@
  */
 #include <string.h>
 #include "stack.h"
+#include "error.h"
 #include "symtable.h"
 #include "expressions.h"
  //inspo: https://www.geeksforgeeks.org/compiler-design/role-of-operator-precedence-parser/
@@ -16,8 +17,6 @@
 #define X PREC_ERROR   // 
 
 #define PREC_TABLE_SIZE (SYM_DOLLAR + 1)
-
-extern symtable *current_symtable;
 
 
 //Precedencna tabuulka vyrazov
@@ -320,7 +319,7 @@ int reduce(TStack *stack){
 
 
 //hlavna funkcia precedencnej analyzy vyrazov - funkcia parse expression
-int parse_expression(Token *current_token, ExprNode **root, Datatype *type){
+int parse_expression(Token *current_token, ExprNode **root, Datatype *type, symtable *symtable, int scope_level){
    //inicializacia zadobnika
    TStack stack;
    init_stack(&stack);
@@ -391,12 +390,23 @@ int parse_expression(Token *current_token, ExprNode **root, Datatype *type){
                data.node = create_leaf(NODE_LITERAL, TYPE_STRING, current_token->attribute);
                data.type = TYPE_STRING;
                break;
-            case TOKEN_IDENTIFIER:
-               data.node = create_leaf(NODE_VAR, TYPE_ANY, current_token->attribute);
-               data.type = TYPE_ANY;
+            case TOKEN_IDENTIFIER:{
+               //zistenie typu premennej, ak nema definovany alebo je nedeklarovany vrati error
+               //ak v tabulke symbolov najde typ premennej tak ho definuje
+               Datatype var_type = TYPE_ANY;
+               if (symtable != NULL){
+                  Symboldata *var = lookup_var(scope_level,current_token->attribute, symtable);
+                  if(var == NULL){
+                     free_stack(&stack);
+                     return ERROR_SEM_UNDEF;
+                  }
+                  var_type = var->typ;
+               }
+               data.node = create_leaf(NODE_VAR, var_type, current_token->attribute);
+               data.type = var_type;
                break;
-            default:
-               break;
+               }
+               default: break;
             }
             //kedze sme nacitali cislo alebo premennu a podobne uz neocakavame dasi operand
             expecting_operand = false;
@@ -416,13 +426,14 @@ int parse_expression(Token *current_token, ExprNode **root, Datatype *type){
          }
          break;
       // > 
-      case PREC_REDUCE:
+      case PREC_REDUCE:{
          int err = reduce(&stack);
          if(err != NO_ERROR){
             free_stack(&stack);
             return err;
          }
          break;
+      }
       // =
       case PREC_EQUAL:
          data.symbol = input_symbol;
