@@ -126,7 +126,7 @@ static void parser_assignment(char *var_name){
 
     if(var_data->typ != TYPE_ANY && expr_type != TYPE_ANY && var_data->typ != expr_type){
         fprintf(stderr, "semantic error: type mismatch in assignment to variable '%s' (variable: %d, expression %d)\n", var_name, var_data->typ, expr_type);
-        exit(4);
+        exit(6);
     }
     
     expect(TOKEN_EOL);        
@@ -187,6 +187,11 @@ static void parse_var_declaration(void){
 
     expect(TOKEN_EOL);
 
+    if(var_type != TYPE_ANY && expr_type != TYPE_ANY && var_type != expr_type){
+        fprintf(stderr, "semantic error: type mismatch in var declaration (var.: %d, expr.: %d)", var_type, expr_type);
+        exit(6);
+    }
+
     Datatype final_type = (var_type == TYPE_ANY) ? expr_type : var_type;
     
     if(!insert_var(current_symtable, var_name, final_type, current_scope_level)){
@@ -211,13 +216,13 @@ static void parse_if(void){
     }
 
 
-    if(current_token.type == TOKEN_LBRACKET){
+    if(current_token.type == TOKEN_INDENT){
         fetch_token();
         current_scope_level++;
         parser_statements();
         exit_scope(current_scope_level, current_symtable);
         current_scope_level--;
-        expect(TOKEN_RBRACKET);
+        expect(TOKEN_DEDENT);
     }
     else{
         parser_statements();
@@ -226,17 +231,20 @@ static void parse_if(void){
     if(current_token.type == TOKEN_KW_ELSE){
         fetch_token();
 
-        if(current_token.type == TOKEN_LBRACKET){
+        if(current_token.type == TOKEN_INDENT){
             fetch_token();
             current_scope_level++;
             parser_statements();
             exit_scope(current_scope_level, current_symtable);
             current_scope_level--;
-            expect(TOKEN_RBRACKET);
+            expect(TOKEN_DEDENT);
         }
         else{
-            parser_statements();
+            syntax_error();
         }
+    }
+    else {
+        syntax_error();
     }
 }
 
@@ -252,16 +260,16 @@ static void parse_while(void){
         exit(expr_err);
     }
 
-    if(current_token.type == TOKEN_LBRACKET){
+    if(current_token.type == TOKEN_INDENT){
         fetch_token();
         current_scope_level++;
         parser_statements();
         exit_scope(current_scope_level, current_symtable);
         current_scope_level--;
-        expect(TOKEN_RBRACKET);
+        expect(TOKEN_DEDENT);
     }
     else{
-        parser_statements();
+        syntax_error();
     }
 }
 
@@ -296,7 +304,7 @@ static void parser_statements(void){
 
     printf("DEBUG: vstupujem do parser_statements\n");
     
-    while (current_token.type != TOKEN_EOF && current_token.type != TOKEN_KW_DEF && current_token.type != TOKEN_AT)
+    while (current_token.type != TOKEN_EOF && current_token.type != TOKEN_KW_DEF && current_token.type != TOKEN_AT && current_token.type != TOKEN_DEDENT)
     {
         switch (current_token.type)
         {
@@ -346,8 +354,11 @@ static void parser_statements(void){
             fetch_token();
             break;
 
-        case 2:
+        case TOKEN_INDENT:
             fetch_token();
+            break;
+
+            case TOKEN_DEDENT:
             break;
             
 
@@ -452,7 +463,7 @@ static void parse_function_call(char *func_name){
         if(arg_count < func_data->param_count){
             if(func_data->param_type[arg_count] != TYPE_ANY && arg_type != TYPE_ANY && func_data->param_type[arg_count] != arg_type){
                 fprintf(stderr, "semantic error: type mismatch in argument %d of function '%s'\n", arg_count+1, func_name);
-                exit(4);
+                exit(6);
             }
         }
 
@@ -558,6 +569,7 @@ static void parse_function(void){
         free(param_types);
     }
 
+    current_scope_level++;
 
     for(int i = 0; i < current_param_count; i++){
         if(!insert_var(current_symtable, current_params[i].name,current_params[i].type, current_scope_level)){
@@ -567,10 +579,22 @@ static void parse_function(void){
         free(current_params[i].name);
     }
     expect(TOKEN_ASSIGN);
-    parser_statements();
 
-    exit_scope(current_scope_level, current_symtable);
-    current_scope_level--;
+    if(current_token.type == TOKEN_INDENT){
+        fetch_token();
+
+        parser_statements();
+
+         exit_scope(current_scope_level, current_symtable);
+        current_scope_level--;
+
+        expect(TOKEN_DEDENT);
+    }
+    else{
+        syntax_error();
+    }
+
+   
 }
 
 
