@@ -7,6 +7,9 @@
 #include "generator.h"
 #include <stdio.h>
 #include <stdlib.h>
+
+static int label_counter = 0; // pocitadlo navesti/skokov
+#include "generator.h"
 #include <string.h>
 
 static int label_counter = 0; // pocitadlo navesti/skokov
@@ -65,6 +68,10 @@ void gen_flush_defvars(void) {
     defvar_count = 0;
 }
 
+void gen_var_declare(const char *name) {
+    printf("DEFVAR LF@%s\n", name);
+}
+
 void gen_var_assign(const char *name) {
     printf("POPS LF@%s\n", name);
 }
@@ -83,8 +90,7 @@ void gen_if_end(int label_id) {
     printf("LABEL $$if_end_%d\n", label_id);
 }
 
-
-//skontrolovat 
+// skontrolovat
 void gen_while_start(int label_id, ExprNode *node) {
     printf("LABEL $$while_%d\n", label_id);
     gen_expr(node);
@@ -216,55 +222,60 @@ void gen_expr(ExprNode *node) {
     }
 }
 
-void gen_func_start(const char *name){
+void gen_func_start(const char *name) {
     printf("LABEL $%s\n", name);
     printf("PUSHFRAME\n");
 }
 
-void gen_func_end(void){
+void gen_func_end(void) {
     printf("POPFRAME\n");
     printf("RETURN\n");
 }
 
-void gen_func_param(const char *name, int index){
-    printf("DEFVAR LF@%s\n",name);
+void gen_func_param(const char *name, int index) {
+    printf("DEFVAR LF@%s\n", name);
     printf("MOVE LF@%s LF@%%%d\n", name, index);
 }
 
-void gen_call_start(void){
+void gen_func_param(const char *name, int index) {
+    printf("DEFVAR LF@%s\n", name);
+    printf("MOVE LF@%s LF@%%%d\n", name, index);
+}
+
+void gen_call_start(void) {
     printf("CREATEFRAME\n");
 }
 
-void gen_call_argument(int index){
+void gen_call_argument(int index) {
     printf("DEFVAR TF@%%%d\n", index);
     printf("POPS TF@%%%d\n", index);
 }
 
-void gen_call(const char *name){
+void gen_call(const char *name) {
     printf("CALL $%s\n", name);
 }
 
-void gen_print_escaped_string(const char *str){
-    if(str == NULL)
+void gen_print_escaped_string(const char *str) {
+    if (str == NULL)
         return;
-    
-    for (int i = 0; str[i] != '\0'; i++){   //prechadza retazec do konca
+
+    for (int i = 0; str[i] != '\0'; i++) { // prechadza retazec do konca
         unsigned char c = (unsigned char)str[i];
-        if( c <= 32 || c == 35 || c == 92) { //overuje ci ide o neviditelne znaky, medzeru, #, lomitko
-            printf("\\%03d",c);             //vypise cislo znaku v desiatkovej sustave a so spravnym formatovanim
-        }else{
+        if (c <= 32 || c == 35 || c == 92) { // overuje ci ide o neviditelne znaky, medzeru, #, lomitko
+            printf("\\%03d", c);             // vypise cislo znaku v desiatkovej sustave a so spravnym formatovanim
+        } else {
             putchar(c);
         }
     }
 }
 
-void gen_main_start(void){
+void gen_main_start(void) {
     printf("LABEL $$main\n");
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 }
 
-void gen_main_end(void){
+void gen_main_end(void) {
     printf("POPFRAME\n");
 }
 
@@ -328,12 +339,208 @@ static void gen_statement(AstStmt *s){
     }
 }
 
-static void gen_statements(AstStmt *s){
-    for(; s != NULL; s->next){
-        gen_statements(s);
-    }
+void gen_print(void) {
+    printf("LABEL $$print\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@type\n");
+    printf("POPS LF@val\n");
+    printf("TYPE LF@type LF@val\n");
+    printf("JUMPIFEQ $$print_unit LF@type string@nil\n");
+    printf("WRITE LF@val\n");
+    printf("JUMP $$print_end\n");
+    printf("LABEL $$print_unit\n");
+    printf("WRITE string@()\n");
+    printf("LABEL $$print_end\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
 }
 
-void generate_program(ExprNode *node){
-    (void)node;     //iba zatial
+void gen_readLine(void) {
+    printf("LABEL $$readLine\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@type\n");
+    printf("READ LF@val string\n");
+    printf("TYPE LF@type LF@val\n");
+    printf("JUMPIFEQ $$readLine_eof LF@type string@nil\n");
+    printf("PUSHS LF@val\n");
+    printf("JUMP $$readLine_end\n");
+    printf("LABEL $$readLine_eof\n");
+    printf("PUSHS string@\n");
+    printf("LABEL $$readLine_end\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
+void gen_readInt(void) {
+    printf("LABEL $$readInt\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@type\n");
+    printf("READ LF@val int\n");
+    printf("TYPE LF@type LF@val\n");
+    printf("JUMPIFEQ $$readInt_eof LF@type string@nil\n");
+    printf("PUSHS LF@val\n");
+    printf("JUMP $$readInt_end\n");
+    printf("LABEL $$readInt_eof\n");
+    printf("PUSHS int@0\n");
+    printf("LABEL $$readInt_end\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
+void gen_readDouble(void) {
+    printf("LABEL $$readDouble\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@type\n");
+    printf("READ LF@val float\n");
+    printf("TYPE LF@type LF@val\n");
+    printf("JUMPIFEQ $$readDouble_eof LF@type string@nil\n");
+    printf("PUSHS LF@val\n");
+    printf("JUMP $$readDouble_end\n");
+    printf("LABEL $$readDouble_eof\n");
+    printf("PUSHS float@0x0p+0\n");
+    printf("LABEL $$readDouble_end\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
+
+void gen_toStr(void) {
+    printf("LABEL $$toStr\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@type\n");
+    printf("DEFVAR LF@SYMB\n");
+    printf("POPS LF@val\n");
+    printf("TYPE LF@type LF@val\n");
+    printf("JUMPIFEQ $$toStr_float LF@type string@float\n");
+    printf("JUMPIFEQ $$toStr_unit LF@type string@nil\n");
+    printf("JUMPIFEQ $$toStr_int LF@type string@int\n");
+    printf("JUMPIFEQ $$toStr_bool LF@type string@bool\n");
+    printf("JUMPIFEQ $$toStr_string LF@type string@string\n");
+    printf("JUMP $$toStr_end\n");
+    printf("LABEL $$toStr_unit\n");
+    printf("PUSHS string@nil\n");
+    printf("JUMP $$toStr_end\n");
+    printf("LABEL $$toStr_float\n");
+    printf("FLOAT2STR LF@SYMB LF@val\n");
+    printf("PUSHS LF@SYMB\n");
+    printf("JUMP $$toStr_end\n");
+    printf("LABEL $$toStr_int\n");
+    printf("INT2STR LF@SYMB LF@val\n");
+    printf("PUSHS LF@SYMB\n");
+    printf("JUMP $$toStr_end\n");
+    printf("LABEL $$toStr_bool\n");
+    printf("JUMPIFEQ $$toStr_bool_true LF@val bool@true\n");
+    printf("PUSHS string@false\n");
+    printf("JUMP $$toStr_end\n");
+    printf("LABEL $$toStr_bool_true\n");
+    printf("PUSHS string@true\n");
+    printf("JUMP $$toStr_end\n");
+    printf("LABEL $$toStr_string\n");
+    printf("PUSHS LF@val\n");
+    printf("LABEL $$toStr_end\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
+
+void gen_toInt(void) {
+    printf("LABEL $$toInt\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@sym\n");
+    printf("POPS LF@val\n");
+    printf("FLOAT2INT LF@sym LF@val\n");
+    printf("PUSHS LF@sym\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
+void gen_strLength(void) {
+    printf("LABEL $$strLength\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@sym\n");
+    printf("POPS LF@val\n");
+    printf("STRLEN LF@sym LF@val \n");
+    printf("PUSHS LF@sym\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
+
+void gen_chr(void) {
+    printf("LABEL $$chr\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@sym\n");
+    printf("POPS LF@val\n");
+    printf("INT2CHAR LF@sym LF@val\n");
+    printf("PUSHS LF@sym\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
+
+void gen_ord(void) {
+    printf("LABEL $$ord\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@num\n");
+    printf("DEFVAR LF@sym\n");
+    printf("DEFVAR LF@len\n");
+    printf("DEFVAR LF@con\n");
+    printf("POPS LF@num\n");
+    printf("POPS LF@val\n");
+    printf("STRLEN LF@len LF@val\n");
+    printf("LT LF@con LF@num int@0 \n");
+    printf("JUMPIFEQ $$ord_nil LF@con bool@true\n");
+    printf("LT LF@con LF@num LF@len \n");
+    printf("JUMPIFEQ $$ord_nil LF@con bool@false\n");
+    printf("STRI2INT LF@sym LF@val LF@num\n");
+    printf("PUSHS LF@sym\n");
+    printf("JUMP $$ord_end\n");
+    printf("LABEL $$ord_nil\n");
+    printf("PUSHS int@-1\n");
+    printf("LABEL $$ord_end\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
+
+void gen_subStr(void) {
+    printf("LABEL $$subStr\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@start\n");
+    printf("DEFVAR LF@end\n");
+    printf("DEFVAR LF@res\n");
+    printf("DEFVAR LF@len\n");
+    printf("DEFVAR LF@char\n");
+    printf("DEFVAR LF@con\n");
+    printf("MOVE LF@res string@\n");
+    printf("POPS LF@end\n");
+    printf("POPS LF@start\n");
+    printf("POPS LF@val\n");
+    printf("STRLEN LF@len LF@val\n");
+    printf("LT LF@con LF@start int@0\n");
+    printf("JUMPIFEQ $$subStr_end LF@con bool@true\n");
+    printf("LT LF@con LF@end int@0\n");
+    printf("JUMPIFEQ $$subStr_end LF@con bool@true\n");
+    printf("LT LF@con LF@end LF@start\n");
+    printf("JUMPIFEQ $$subStr_end LF@con bool@true\n");
+    printf("LT LF@con LF@len LF@end\n");
+    printf("JUMPIFEQ $$subStr_end LF@con bool@true\n");
+
+    printf("LABEL $$subStr_loop\n");
+    printf("LT LF@con LF@start LF@end\n");
+    printf("JUMPIFEQ $$subStr_end LF@con bool@false\n");
+    printf("GETCHAR LF@char LF@val LF@start\n");
+    printf("CONCAT LF@res LF@res LF@char\n");
+    printf("ADD LF@start LF@start int@1\n");
+    printf("JUMP $$subStr_loop\n");
+    printf("LABEL $$subStr_end\n");
+    printf("PUSHS LF@res\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
+
+void generate_program(ExprNode *node) {
+    (void)node; // iba zatial
 }
