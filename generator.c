@@ -7,6 +7,9 @@
 #include "generator.h"
 #include <stdio.h>
 #include <stdlib.h>
+
+static int label_counter = 0; // pocitadlo navesti/skokov
+#include "generator.h"
 #include <string.h>
 
 static int label_counter = 0; // pocitadlo navesti/skokov
@@ -39,6 +42,10 @@ void gen_flush_defvars(void) {
     defvar_count = 0;
 }
 
+void gen_var_declare(const char *name) {
+    printf("DEFVAR LF@%s\n", name);
+}
+
 void gen_var_assign(const char *name) {
     printf("POPS LF@%s\n", name);
 }
@@ -57,8 +64,6 @@ void gen_if_end(int label_id) {
     printf("LABEL $$if_end_%d\n", label_id);
 }
 
-
-
 void gen_while_start(int label_id, ExprNode *node) {
     printf("LABEL $$while_%d\n", label_id);
     gen_expr(node);
@@ -70,9 +75,6 @@ void gen_while_end(int label_id) {
     printf("JUMP $$while_%d\n", label_id);
     printf("LABEL $$while_end_%d\n", label_id);
 }
-
-
-
 void gen_expr(ExprNode *node) {
     if (node == NULL)
         return;
@@ -191,29 +193,46 @@ void gen_expr(ExprNode *node) {
     }
 }
 
-void gen_func_start(const char *name){
+void gen_func_start(const char *name) {
     printf("LABEL $%s\n", name);
     printf("PUSHFRAME\n");
 }
 
-void gen_func_end(void){
+void gen_func_end(void) {
     printf("POPFRAME\n");
     printf("RETURN\n");
 }
 
-void gen_call_start(void){
+void gen_call_start(void) {
     printf("CREATEFRAME\n");
 }
 
-void gen_call_argument(int index){
+void gen_call_argument(int index) {
     printf("DEFVAR TF@%%%d\n", index);
     printf("POPS TF@%%%d\n", index);
 }
 
-void gen_call(const char *name){
+void gen_call(const char *name) {
     printf("CALL $%s\n", name);
 }
 
-void generate_program(ExprNode *node){
-    (void)node;     //iba zatial
+void generate_program(ExprNode *node) {
+    (void)node; // iba zatial
+}
+
+void gen_print() {
+    printf("LABEL $$print\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@type\n");
+    printf("POPS LF@val\n");
+    printf("TYPE LF@type LF@val\n");
+    printf("JUMPIFEQ $$print_unit LF@type string@nil\n");
+    printf("WRITE LF@val\n");
+    printf("JUMP $$print_end\n");
+    printf("LABEL $$print_unit\n");
+    printf("WRITE string@()\n");
+    printf("LABEL $$print_end\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
 }
