@@ -220,7 +220,7 @@ void generate_program(ExprNode *node) {
     (void)node; // iba zatial
 }
 
-void gen_print() {
+void gen_print(void) {
     printf("LABEL $$print\n");
     printf("PUSHFRAME\n");
     printf("DEFVAR LF@val\n");
@@ -233,6 +233,23 @@ void gen_print() {
     printf("LABEL $$print_unit\n");
     printf("WRITE string@()\n");
     printf("LABEL $$print_end\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
+
+void gen_readLine(void) {
+    printf("LABEL $$readLine\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@type\n");
+    printf("READ LF@Vval string\n");
+    printf("TYPE LF@type LF@val\n");
+    printf("JUMPIFEQ $$readLine_eof LF@type string@nil\n");
+    printf("PUSHS LF@val\n");
+    printf("JUMP $$readLIne_end\n");
+    printf("LABEL $$readLine_eof\n");
+    printf("PUSHS @string\n");
+    printf("LABEL $$readLine_end\n");
     printf("POPFRAME\n");
     printf("RETURN\n");
 }
