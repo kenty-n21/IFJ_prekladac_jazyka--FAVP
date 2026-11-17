@@ -410,12 +410,12 @@ void gen_subStr(void) {
     printf("JUMPIFEQ $$subStr_end LF@con bool@true\n");
 
     printf("LABEL $$subStr_loop\n");
-    printf("LT LF@con LF@start LF@end");
-    printf("JUMPIFEQ $$subStr_end LF@con bool@false");
-    printf("GETCHAR LF@char LF@val LF@start");
-    printf("CONCAT LF@res LF@res LF@char");
-    printf("ADD LF@start LF@start int@1");
-    printf("JUMP $$subStr_loop");
+    printf("LT LF@con LF@start LF@end\n");
+    printf("JUMPIFEQ $$subStr_end LF@con bool@false\n");
+    printf("GETCHAR LF@char LF@val LF@start\n");
+    printf("CONCAT LF@res LF@res LF@char\n");
+    printf("ADD LF@start LF@start int@1\n");
+    printf("JUMP $$subStr_loop\n");
     printf("LABEL $$subStr_end\n");
     printf("PUSHS LF@res\n");
     printf("POPFRAME\n");
