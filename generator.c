@@ -242,14 +242,30 @@ void gen_readLine(void) {
     printf("PUSHFRAME\n");
     printf("DEFVAR LF@val\n");
     printf("DEFVAR LF@type\n");
-    printf("READ LF@Vval string\n");
+    printf("READ LF@val string\n");
     printf("TYPE LF@type LF@val\n");
     printf("JUMPIFEQ $$readLine_eof LF@type string@nil\n");
     printf("PUSHS LF@val\n");
-    printf("JUMP $$readLIne_end\n");
+    printf("JUMP $$readLine_end\n");
     printf("LABEL $$readLine_eof\n");
-    printf("PUSHS @string\n");
+    printf("PUSHS string@\n");
     printf("LABEL $$readLine_end\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
+void gen_readInt(void) {
+    printf("LABEL $$readInt\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@type\n");
+    printf("READ LF@val int\n");
+    printf("TYPE LF@type LF@val\n");
+    printf("JUMPIFEQ $$readInt_eof LF@type string@nil\n");
+    printf("PUSHS LF@val\n");
+    printf("JUMP $$readInt_end\n");
+    printf("LABEL $$readInt_eof\n");
+    printf("PUSHS int@0\n");
+    printf("LABEL $$readInt_end\n");
     printf("POPFRAME\n");
     printf("RETURN\n");
 }
