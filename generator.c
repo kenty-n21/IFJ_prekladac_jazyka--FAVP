@@ -1,8 +1,7 @@
-/**
- * Autor: Veronika Kentošová(xkentov00)
- * generátor kódu
- *
- * Zvoleny pristup generovania kodu z AST, ktory sme vyuzili na vnutornu reprezantaciu naseho kodu
+/*
+ * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
+ * Subor: generator.c
+ * Autor: Veronika Kentošová(xkentov00) a Filip Šimulčík(xsimulf00)
  */
 #include "generator.h"
 #include <stdio.h>
@@ -15,7 +14,7 @@ static int label_counter = 0; // pocitadlo navesti/skokov
 static int label_counter = 0; // pocitadlo navesti/skokov
 static char defvar_buf[256][64];
 static int defvar_count = 0;
-static void gen_statements(AstStmt *s);
+static void gen_statement(AstStmt *s);
 
 static void gen_call_stmt(AstCall *call) {
     if (call == NULL)
@@ -281,6 +280,12 @@ void gen_main_end(void) {
     printf("POPFRAME\n");
 }
 
+static void gen_block(AstStmt *s) {
+    for (; s != NULL; s = s->next) {
+        gen_statement(s);
+    }
+}
+
 static void gen_statement(AstStmt *s) {
     if (s == NULL) {
         return;
@@ -299,12 +304,12 @@ static void gen_statement(AstStmt *s) {
 
     case AST_IF: {
         int lbl = gen_new_label();
-        gen_expr(s->expr);             // vyhodnotí podmienku
-        gen_if_start(lbl);             // ak false, skočí na else
-        gen_statements(s->then_block); // telo then
-        gen_if_else(lbl);              // preskočí else a označí začiatok else
+        gen_expr(s->expr);        // vyhodnotí podmienku
+        gen_if_start(lbl);        // ak false, skočí na else
+        gen_block(s->then_block); // telo then
+        gen_if_else(lbl);         // preskočí else a označí začiatok else
         if (s->else_block != NULL) {
-            gen_statements(s->else_block); // telo else (ak existuje)
+            gen_block(s->else_block); // telo else (ak existuje)
         }
         gen_if_end(lbl); // koniec celého if
         break;
@@ -313,7 +318,7 @@ static void gen_statement(AstStmt *s) {
     case AST_WHILE: {
         int lbl = gen_new_label();
         gen_while_start(lbl, s->expr); // začiatok cyklu + test podmienky
-        gen_statements(s->then_block); // telo cyklu
+        gen_block(s->then_block);      // telo cyklu
         gen_while_end(lbl);            // skok späť na začiatok
         break;
     }
