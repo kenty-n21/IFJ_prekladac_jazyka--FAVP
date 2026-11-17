@@ -15,6 +15,8 @@ int gen_new_label(void);
 //generuje aby sa v lokalnom ramci deklarovala premenna s nazvom name
 void gen_var_declare(const char *name);
 
+void gen_flush_defvars(void);
+
 //generuje priradenie hodnoty premennej z vrcholu zasobnika
 void gen_var_assign(const char *name);
 
@@ -29,5 +31,5 @@ void gen_if_end(int label_id);
 void gen_expr(ExprNode *node);
 
 //prejde cely AST a vygeneruje pomocou pomocnych funkcii kod
-void generate_program(ExprNode *node)
+void generate_program(ExprNode *node);
 #endif
