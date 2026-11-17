@@ -347,3 +347,15 @@ void gen_strLength(void) {
     printf("POPFRAME\n");
     printf("RETURN\n");
 }
+
+void gen_chr(void) {
+    printf("LABEL $$chr\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@sym\n");
+    printf("POPS LF@val\n");
+    printf("INT2CHAR LF@sym LF@val\n");
+    printf("PUSHS LF@sym\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
