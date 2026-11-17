@@ -55,5 +55,5 @@ void gen_main_start(void);
 void gen_main_end(void);
 
 //prejde cely AST a vygeneruje pomocou pomocnych funkcii kod
-void generate_program(AstProgram *program);
+void generate_program(AstStmt *program);
 #endif

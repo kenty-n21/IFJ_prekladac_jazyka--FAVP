@@ -1,5 +1,5 @@
 /**
- * Autor: Veronika Kentošová(xkentov00)
+ * Autor: Veronika Kentošová(xkentov00) a Filip Šimulčík(xsimulf00)
  * generátor kódu
  *
  * Zvoleny pristup generovania kodu z AST, ktory sme vyuzili na vnutornu reprezantaciu naseho kodu
@@ -7,14 +7,12 @@
 #include "generator.h"
 #include <stdio.h>
 #include <stdlib.h>
-
-static int label_counter = 0; // pocitadlo navesti/skokov
-#include "generator.h"
 #include <string.h>
 
 static int label_counter = 0; // pocitadlo navesti/skokov
 static char defvar_buf[256][64];
 static int defvar_count = 0;
+static void gen_statements(AstStmt *s);
 
 static void gen_call_stmt(AstCall *call){
     if ( call == NULL)
@@ -66,10 +64,6 @@ void gen_flush_defvars(void) {
         printf("DEFVAR LF@%s\n", defvar_buf[i]);
     }
     defvar_count = 0;
-}
-
-void gen_var_declare(const char *name) {
-    printf("DEFVAR LF@%s\n", name);
 }
 
 void gen_var_assign(const char *name) {
@@ -135,6 +129,7 @@ void gen_expr(ExprNode *node) {
             break; // ak bude type_any a ine
         }
         break;
+        
     // premenne
     // „Lokální rámec, značíme LF (Local Frame)... slouží pro ukládání lokálních proměnných funkcí a jejich parametrů.“
     case NODE_VAR:
@@ -230,11 +225,6 @@ void gen_func_start(const char *name) {
 void gen_func_end(void) {
     printf("POPFRAME\n");
     printf("RETURN\n");
-}
-
-void gen_func_param(const char *name, int index) {
-    printf("DEFVAR LF@%s\n", name);
-    printf("MOVE LF@%s LF@%%%d\n", name, index);
 }
 
 void gen_func_param(const char *name, int index) {
@@ -541,6 +531,6 @@ void gen_subStr(void) {
     printf("RETURN\n");
 }
 
-void generate_program(ExprNode *node) {
-    (void)node; // iba zatial
+void generate_program(AstStmt *program) {
+    (void)program; // iba zatial
 }
