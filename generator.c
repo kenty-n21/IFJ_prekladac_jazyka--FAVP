@@ -1,9 +1,10 @@
 /**
  * Autor: Veronika Kentošová(xkentov00)
  * generátor kódu
- * 
+ *
  * Zvoleny pristup generovania kodu z AST, ktory sme vyuzili na vnutornu reprezantaciu naseho kodu
  */
+#include "generator.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,11 +14,11 @@ static int label_counter = 0;   //pocitadlo navesti/skokov
 static char defvar_buf[256][64];
 static int defvar_count = 0;
 
-int gen_new_label(void){
+int gen_new_label(void) {
     return label_counter++;
 }
 
-void gen_init(void){
+void gen_init(void) {
     printf(".IFJcode26\n");
     printf("DEFVAR GF@$tmp1\n");
     printf("DEFVAR GF@$tmp2\n");
@@ -39,140 +40,145 @@ void gen_flush_defvars(void){
     defvar_count = 0;
 }
 
-void gen_var_assign(const char *name){
+
+void gen_var_assign(const char *name) {
     printf("POPS LF@%s\n", name);
 }
 
-void gen_if_start(int label_id){
+void gen_if_start(int label_id) {
     printf("PUSHS bool@true\n");
     printf("JUMPIFNEQS $$else_%d\n", label_id);
 }
 
-void gen_if_else(int label_id){
+void gen_if_else(int label_id) {
     printf("JUMP $$if_end_%d\n", label_id);
     printf("LABEL $$else_%d\n", label_id);
 }
 
-void gen_if_end(int label_id){
+void gen_if_end(int label_id) {
     printf("LABEL $$if_end_%d\n", label_id);
 }
 
-void gen_expr(ExprNode *node){
-    if(node == NULL)
+void gen_while_start(int label_id) {
+    printf("PUSHS bool@true\n");
+    gen_expr(node->condition);
+}
+
+void gen_expr(ExprNode *node) {
+    if (node == NULL)
         return;
 
-    switch (node->nodetype){
+    switch (node->nodetype) {
 
-        //ak je v uzli teda node konkretna hodnota
-        case NODE_LITERAL:
+    // ak je v uzli teda node konkretna hodnota
+    case NODE_LITERAL:
 
-            switch (node->datatype)
-            {
-            case TYPE_INT:
-                printf("PUSHS int@%s\n",node->value);
-                break;
-            case TYPE_DOUBLE:{
-                double val = strtod(node->value, NULL);
-                printf("PUSHS float@%a\n",val);
-                break;
-            }
-            case TYPE_STRING:
-                printf("PUSHS string@%s\n",node->value);
-                break;
-            case TYPE_BOOL:
-                printf("PUSHS bool@%s\n",node->value);
-                break;
-            case TYPE_UNIT: //pre istotu
-                printf("PUSHS nil@nil\n");
-                break;
-            default: break; //ak bude type_any a ine 
-
-            }
+        switch (node->datatype) {
+        case TYPE_INT:
+            printf("PUSHS int@%s\n", node->value);
             break;
-        //premenne
-        //„Lokální rámec, značíme LF (Local Frame)... slouží pro ukládání lokálních proměnných funkcí a jejich parametrů.“
-        case NODE_VAR:
-            printf("PUSHS LF@%s\n", node->value);
+        case TYPE_DOUBLE: {
+            double val = strtod(node->value, NULL);
+            printf("PUSHS float@%a\n", val);
             break;
-        case NODE_UNARY:
-            gen_expr(node->left);
-            if(node->datatype == TYPE_INT){
-                printf("PUSHS int@-1\n");
-            }else if (node->datatype == TYPE_DOUBLE){
-                //hodnota -0x1p+0 repreyentuje -1.0
-                printf("PUSHS float@-0x1p+0\n");
-            }
-            printf("MULS\n");
+        }
+        case TYPE_STRING:
+            printf("PUSHS string@%s\n", node->value);
             break;
+        case TYPE_BOOL:
+            printf("PUSHS bool@%s\n", node->value);
+            break;
+        case TYPE_UNIT: // pre istotu
+            printf("PUSHS nil@nil\n");
+            break;
+        default:
+            break; // ak bude type_any a ine
+        }
+        break;
+    // premenne
+    // „Lokální rámec, značíme LF (Local Frame)... slouží pro ukládání lokálních proměnných funkcí a jejich parametrů.“
+    case NODE_VAR:
+        printf("PUSHS LF@%s\n", node->value);
+        break;
+    case NODE_UNARY:
+        gen_expr(node->left);
+        if (node->datatype == TYPE_INT) {
+            printf("PUSHS int@-1\n");
+        } else if (node->datatype == TYPE_DOUBLE) {
+            // hodnota -0x1p+0 repreyentuje -1.0
+            printf("PUSHS float@-0x1p+0\n");
+        }
+        printf("MULS\n");
+        break;
 
-        case NODE_BINARY:
+    case NODE_BINARY:
 
-            gen_expr(node->left);
-            //konverzia int na float
-            if(node->datatype == TYPE_DOUBLE && node->left->datatype == TYPE_INT){
-                printf("INT2FLOATS\n");
-            }
+        gen_expr(node->left);
+        // konverzia int na float
+        if (node->datatype == TYPE_DOUBLE && node->left->datatype == TYPE_INT) {
+            printf("INT2FLOATS\n");
+        }
 
-            gen_expr(node->right);
-            //konverzia int na float
-            if(node->datatype == TYPE_DOUBLE && node->right->datatype == TYPE_INT){
-                printf("INT2FLOATS\n");
-            }
+        gen_expr(node->right);
+        // konverzia int na float
+        if (node->datatype == TYPE_DOUBLE && node->right->datatype == TYPE_INT) {
+            printf("INT2FLOATS\n");
+        }
 
-            switch (node->symbol)
-            {
-            case SYM_PLUS:
-            //riesenie konkatenacie retazcov
-            if(node->datatype == TYPE_STRING){
+        switch (node->symbol) {
+        case SYM_PLUS:
+            // riesenie konkatenacie retazcov
+            if (node->datatype == TYPE_STRING) {
                 printf("POPS GF@$tmp2\n");
                 printf("POPS GF@$tmp1\n");
                 printf("CONCAT GF@$tmp1 GF@$tmp1 GF@$tmp2\n");
                 printf("PUSHS GF@$tmp1\n");
                 break;
             }
-                printf("ADDS\n");
-                break;
-            case SYM_MINUS:
-                printf("SUBS\n");
-                break;
-            case SYM_MUL:
-                printf("MULS\n");
-                break;
-            case SYM_DIV:
-                if(node->datatype == TYPE_INT){
-                    printf("IDIVS\n");
-                }else{
-                    printf("DIVS\n");
-                }
-                break;
-
-            case SYM_LT:
-                printf("LTS\n");
-                break;
-            case SYM_GT:
-                printf("GTS\n");
-                break;
-            case SYM_LTE:
-                printf("GTS\n");
-                printf("NOTS\n");
-                break;
-            case SYM_GTE:
-                printf("LTS\n");
-                printf("NOTS\n");
-                break;
-            case SYM_EQ:
-                printf("EQS\n");
-                break;
-            case SYM_NEQ:
-                printf("EQS\n");
-                printf("NOTS\n");
-                break;
-            
-            default:
-                break;
+            printf("ADDS\n");
+            break;
+        case SYM_MINUS:
+            printf("SUBS\n");
+            break;
+        case SYM_MUL:
+            printf("MULS\n");
+            break;
+        case SYM_DIV:
+            if (node->datatype == TYPE_INT) {
+                printf("IDIVS\n");
+            } else {
+                printf("DIVS\n");
             }
             break;
-        default: break;
+
+        case SYM_LT:
+            printf("LTS\n");
+            break;
+        case SYM_GT:
+            printf("GTS\n");
+            break;
+        case SYM_LTE:
+            printf("GTS\n");
+            printf("NOTS\n");
+            break;
+        case SYM_GTE:
+            printf("LTS\n");
+            printf("NOTS\n");
+            break;
+        case SYM_EQ:
+            printf("EQS\n");
+            break;
+        case SYM_NEQ:
+            printf("EQS\n");
+            printf("NOTS\n");
+            break;
+
+        default:
+            break;
+        }
+        break;
+    default:
+        break;
     }
 }
 
