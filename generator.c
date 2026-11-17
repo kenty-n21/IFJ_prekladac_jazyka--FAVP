@@ -13,6 +13,32 @@ static int label_counter = 0; // pocitadlo navesti/skokov
 static char defvar_buf[256][64];
 static int defvar_count = 0;
 
+static void gen_call_stmt(AstCall *call){
+    if ( call == NULL)
+        return ;
+
+    gen_call_start();
+    for (int i = 0; i < call->arg_count; i++){
+        gen_expr(call->args[i]);
+        gen_call_argument(i);
+    }
+    gen_call(call->name);
+}
+
+static void collect_defvars(AstStmt *s){
+    for (; s != NULL; s = s->next){
+        if(s->kind == AST_VARDEF){
+            gen_var_declare(s->name);
+        }
+        if(s->then_block != NULL){
+            collect_defvars(s->then_block);
+        }
+        if (s->else_block != NULL){
+            collect_defvars(s->else_block);
+        }
+    }
+}
+
 int gen_new_label(void) {
     return label_counter++;
 }
@@ -240,6 +266,72 @@ void gen_main_start(void){
 
 void gen_main_end(void){
     printf("POPFRAME\n");
+}
+
+
+static void gen_statement(AstStmt *s){
+    if(s == NULL){
+        return;
+    }
+
+    switch (s->kind)
+    {
+    case AST_VARDEF:
+    case AST_ASSIGN:
+        if(s->expr != NULL){
+            gen_expr(s->expr);
+        }else if (s->call != NULL){
+             gen_call_stmt(s->call);
+        }
+        gen_var_assign(s->name);
+        break;
+
+    case AST_IF:{
+        int lbl = gen_new_label();
+        gen_expr(s->expr);             // vyhodnotí podmienku
+        gen_if_start(lbl);             // ak false, skočí na else
+        gen_statements(s->then_block); // telo then
+        gen_if_else(lbl);              // preskočí else a označí začiatok else
+        if (s->else_block != NULL) {
+            gen_statements(s->else_block); // telo else (ak existuje)
+        }
+        gen_if_end(lbl);               // koniec celého if
+        break;
+    }
+
+    case AST_WHILE:{
+        int lbl = gen_new_label();
+        gen_while_start(lbl, s->expr); // začiatok cyklu + test podmienky
+        gen_statements(s->then_block); // telo cyklu
+        gen_while_end(lbl);            // skok späť na začiatok
+        break;
+    }
+    case AST_RETURN:
+        if (s->expr != NULL) {
+            gen_expr(s->expr);
+        } else if (s->call != NULL) {
+            gen_call_stmt(s->call);
+        }
+        gen_func_end(); // vypíše: POPFRAME a RETURN
+        break;
+
+    case AST_EXPR:
+        if (s->call != NULL) {
+            gen_call_stmt(s->call);
+        } else if (s->expr != NULL) {
+            gen_expr(s->expr);
+        }
+        break;
+    
+    default:
+        break;
+    }
+}
+
+static void gen_statements(AstStmt *s){
+    for(; s != NULL; s->next){
+        gen_statements(s);
+    }
 }
 
 void generate_program(ExprNode *node){

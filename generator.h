@@ -5,6 +5,7 @@
 #ifndef GENERATOR_H
 #define GENERATOR_H
 #include "expressions.h" //dolezite pre strukturu uzla teda AST
+#include "parser.h"
  
 // funkcia vypise hlavicku .IFJcode26, docasne premenne a skok na main
 void gen_init(void);   
@@ -54,5 +55,5 @@ void gen_main_start(void);
 void gen_main_end(void);
 
 //prejde cely AST a vygeneruje pomocou pomocnych funkcii kod
-void generate_program(ExprNode *node);
+void generate_program(AstProgram *program);
 #endif
