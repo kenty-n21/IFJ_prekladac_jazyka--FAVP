@@ -384,3 +384,40 @@ void gen_ord(void) {
     printf("POPFRAME\n");
     printf("RETURN\n");
 }
+
+void gen_subStr(void) {
+    printf("LABEL $$subStr\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@start\n");
+    printf("DEFVAR LF@end\n");
+    printf("DEFVAR LF@res\n");
+    printf("DEFVAR LF@len\n");
+    printf("DEFVAR LF@char\n");
+    printf("DEFVAR LF@con\n");
+    printf("MOVE LF@res string@\n");
+    printf("POPS LF@end\n");
+    printf("POPS LF@start\n");
+    printf("POPS LF@val\n");
+    printf("STRLEN LF@len LF@val\n");
+    printf("LT LF@con LF@start int@0\n");
+    printf("JUMPIFEQ $$subStr_end LF@con bool@true\n");
+    printf("LT LF@con LF@end int@0\n");
+    printf("JUMPIFEQ $$subStr_end LF@con bool@true\n");
+    printf("LT LF@con LF@end LF@start\n");
+    printf("JUMPIFEQ $$subStr_end LF@con bool@true\n");
+    printf("LT LF@con LF@len LF@end\n");
+    printf("JUMPIFEQ $$subStr_end LF@con bool@true\n");
+
+    printf("LABEL $$subStr_loop\n");
+    printf("LT LF@con LF@start LF@end");
+    printf("JUMPIFEQ $$subStr_end LF@con bool@false");
+    printf("GETCHAR LF@char LF@val LF@start");
+    printf("CONCAT LF@res LF@res LF@char");
+    printf("ADD LF@start LF@start int@1");
+    printf("JUMP $$subStr_loop");
+    printf("LABEL $$subStr_end\n");
+    printf("PUSHS LF@res\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
