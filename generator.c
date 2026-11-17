@@ -59,6 +59,14 @@ void gen_code(ExprNode *node){
             printf("PUSHS LF@%s\n", node->value);
             break;
         case NODE_UNARY:
+            gen_code(node->left);
+            if(node->datatype == TYPE_INT){
+                printf("PUSHS int@-1\n");
+            }else if (node->datatype == TYPE_DOUBLE){
+                //hodnota -0x1p+0 repreyentuje -1.0
+                printf("PUSHS float@-0x1p+0\n");
+            }
+            printf("MULS\n");
             break;
 
         case NODE_BINARY:
@@ -78,6 +86,14 @@ void gen_code(ExprNode *node){
             switch (node->symbol)
             {
             case SYM_PLUS:
+            //riesenie konkatenacie retazcov
+            if(node->datatype == TYPE_STRING){
+                printf("POPS GF@$tmp2\n");
+                printf("POPS GF@$tmp1\n");
+                printf("CONCAT GF@$tmp1 GF@$tmp1 GF@$tmp2\n");
+                printf("PUSHS GF@$tmp1\n");
+                break;
+            }
                 printf("ADDS\n");
                 break;
             case SYM_MINUS:
