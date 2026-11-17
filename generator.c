@@ -324,3 +324,15 @@ void gen_toStr(void) {
     printf("POPFRAME\n");
     printf("RETURN\n");
 }
+
+void gen_toInt(void) {
+    printf("LABEL $$toInt\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@sym\n");
+    printf("POPS LF@val\n");
+    printf("FLOAT2INT LF@sym LF@val\n");
+    printf("PUSHS LF@sym\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
