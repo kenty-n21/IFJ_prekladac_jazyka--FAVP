@@ -8,9 +8,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "generator.h"
 
-static int label_counter = 0;   //pocitadlo navesti/skokov
+static int label_counter = 0; // pocitadlo navesti/skokov
 static char defvar_buf[256][64];
 static int defvar_count = 0;
 
@@ -23,23 +22,22 @@ void gen_init(void) {
     printf("DEFVAR GF@$tmp1\n");
     printf("DEFVAR GF@$tmp2\n");
     printf("JUMP $$main\n");
-} 
+}
 
-void gen_var_declare(const char *name){
+void gen_var_declare(const char *name) {
     // Neupisujeme hned! Len ulozime meno.
     strncpy(defvar_buf[defvar_count], name, 63);
     defvar_buf[defvar_count][63] = '\0';
     defvar_count++;
 }
 
-void gen_flush_defvars(void){
+void gen_flush_defvars(void) {
     // Vypise vsetky nazbirane DEFVAR naraz a resetuje buffer
-    for(int i = 0; i < defvar_count; i++){
+    for (int i = 0; i < defvar_count; i++) {
         printf("DEFVAR LF@%s\n", defvar_buf[i]);
     }
     defvar_count = 0;
 }
-
 
 void gen_var_assign(const char *name) {
     printf("POPS LF@%s\n", name);
@@ -60,11 +58,12 @@ void gen_if_end(int label_id) {
 }
 
 
+//skontrolovat 
 void gen_while_start(int label_id, ExprNode *node) {
     printf("LABEL $$while_%d\n", label_id);
     gen_expr(node);
     printf("PUSHS bool@true\n");
-    gen_expr(node->condition);
+    printf("JUMPIFNEQS $$while_end_%d\n", label_id);
 }
 
 void gen_while_end(int label_id) {
