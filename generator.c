@@ -18,4 +18,21 @@ void gen_init(void){
     printf("DEFVAR GF@$tmp1\n");
     printf("DEFVAR GF@$tmp2\n");
     printf("JUMP $$main\n");
-}  
+} 
+
+void gen_code(ExprNode *node){
+    if(node == NULL)
+        return;
+
+    switch (node->nodetype){
+        case NODE_LITERAL:
+            break;
+        case NODE_VAR:
+            break;
+        case NODE_UNARY:
+            break;
+        case NODE_BINARY:
+            break;
+        default: break;
+    }
+}
