@@ -186,6 +186,7 @@ bool insert_func(symtable *t, char *meno, Datatype return_typ, int param_count, 
     if (t == NULL || meno == NULL) {
         return false;
     }
+
     Symboldata *s = malloc(sizeof(Symboldata));
     if (s == NULL) {
         return false;

@@ -16,7 +16,7 @@
 // Rezim prekladu: kym nie je hotovy parser, bezi len test scannera.
 // Ked bude parser hotovy: zakomentujte nasledujuci riadok a pridajte parser.c
 // do SRCS v Makefile.
-#define TEST_SCANNER
+
 
 #ifndef TEST_SCANNER
 #include "parser.h"
@@ -61,6 +61,8 @@ int main(void) {
     int result = parser_program();
     if (result != 0) {
         fprintf(stderr, "Preklad skoncil s chybou: %d\n", result);
+    } else {
+        fprintf(stderr, "Preklad prebehol úspešne!\n");
     }
     return result; // 0 pri uspechu alebo kod chyby 1..10, 99
 #endif

@@ -70,4 +70,7 @@ Symboldata *lookup_var(int scope_level, char *meno, symtable *t); // najde premm
     Symboldata *ukazka = lookup_var(level zanorenia, level zanorenia$meno premennej, tabulka kde hladat) musi tam byt pri var $ pri funkcii nemusi
     strcmp((ukazka->meno, 0$nazov premennej))  zistis ci je to to co hladas ale iba pri premennej, funkcia pocitam s tym ze nemoze byt zanorena
     musi tam byt na zaciatku 0$*/
+
+void insert_included_fun(symtable *t);
+    
 #endif

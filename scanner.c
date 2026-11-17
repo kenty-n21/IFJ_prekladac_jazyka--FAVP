@@ -426,6 +426,18 @@ static Token scan_token(void) {
         seen_newline = 0;
         line_has_tokens = 1;
 
+        // Priznak pre interpolovany retazec s"..." [rozsirenie INTERPOLATEDS]
+        int is_interpolated = 0;
+        if (c == 's') {
+            int next_q = next_char();
+            if (next_q == '"') {
+                is_interpolated = 1;
+                c = '"'; // Pokracujeme rovno do sekcie 10 (Retazcove literaly)
+            } else if (next_q != EOF) {
+                unget_char(next_q);
+            }
+        }
+
         // 6. Identifikatory, klucove slova a '_' [sekcia 1.1]
         if (isalpha(c) || c == '_') {
             while (isalnum(c) || c == '_') {
@@ -573,8 +585,9 @@ static Token scan_token(void) {
             return token;
         }
 
-        // 10. Retazcove literaly (String) - obycajne "..." aj viacriadkove """...""" [sekcia 1.1]
+        // 10. Retazcove literaly (String) - obycajne "...", viacriadkove """...""" a interpolovane s"..." [sekcia 1.1]
         if (c == '"') {
+            TokenType str_type = is_interpolated ? TOKEN_INTERP_STRING : TOKEN_STRING;
             int next1 = next_char();
             if (next1 == '"') {
                 int next2 = next_char();
@@ -597,13 +610,13 @@ static Token scan_token(void) {
                         ADD_CHAR(token, attr_len, c);
                     }
                     token.attribute[attr_len] = '\0';
-                    token.type = TOKEN_STRING;
+                    token.type = str_type;
                     return token;
                 } else {
                     // Prazdny jednoriadkovy retazec ""
                     if (next2 != EOF) unget_char(next2);
                     token.attribute[0] = '\0';
-                    token.type = TOKEN_STRING;
+                    token.type = str_type;
                     return token;
                 }
             } else {
@@ -629,7 +642,7 @@ static Token scan_token(void) {
                     c = next_char();
                 }
                 token.attribute[attr_len] = '\0';
-                token.type = TOKEN_STRING;
+                token.type = str_type;
                 return token;
             }
         }

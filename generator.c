@@ -64,6 +64,7 @@ void gen_if_end(int label_id) {
     printf("LABEL $$if_end_%d\n", label_id);
 }
 
+// skontrolovat
 void gen_while_start(int label_id, ExprNode *node) {
     printf("LABEL $$while_%d\n", label_id);
     gen_expr(node);
@@ -94,7 +95,9 @@ void gen_expr(ExprNode *node) {
             break;
         }
         case TYPE_STRING:
-            printf("PUSHS string@%s\n", node->value);
+            printf("PUSHS string@");
+            gen_print_escaped_string(node->value);
+            printf("\n");
             break;
         case TYPE_BOOL:
             printf("PUSHS bool@%s\n", node->value);
@@ -203,6 +206,16 @@ void gen_func_end(void) {
     printf("RETURN\n");
 }
 
+void gen_func_param(const char *name, int index) {
+    printf("DEFVAR LF@%s\n", name);
+    printf("MOVE LF@%s LF@%%%d\n", name, index);
+}
+
+void gen_func_param(const char *name, int index) {
+    printf("DEFVAR LF@%s\n", name);
+    printf("MOVE LF@%s LF@%%%d\n", name, index);
+}
+
 void gen_call_start(void) {
     printf("CREATEFRAME\n");
 }
@@ -214,6 +227,30 @@ void gen_call_argument(int index) {
 
 void gen_call(const char *name) {
     printf("CALL $%s\n", name);
+}
+
+void gen_print_escaped_string(const char *str) {
+    if (str == NULL)
+        return;
+
+    for (int i = 0; str[i] != '\0'; i++) { // prechadza retazec do konca
+        unsigned char c = (unsigned char)str[i];
+        if (c <= 32 || c == 35 || c == 92) { // overuje ci ide o neviditelne znaky, medzeru, #, lomitko
+            printf("\\%03d", c);             // vypise cislo znaku v desiatkovej sustave a so spravnym formatovanim
+        } else {
+            putchar(c);
+        }
+    }
+}
+
+void gen_main_start(void) {
+    printf("LABEL $$main\n");
+    printf("CREATEFRAME\n");
+    printf("PUSHFRAME\n");
+}
+
+void gen_main_end(void) {
+    printf("POPFRAME\n");
 }
 
 void generate_program(ExprNode *node) {

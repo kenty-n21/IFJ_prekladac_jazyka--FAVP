@@ -1,0 +1,9 @@
+import ifj
+
+@main def main() : unit =
+    var result: Int = add(5, 10)
+    return
+
+def add(a: Int, b: Int) : Int =
+    var sum: Int = a + b
+    return sum
