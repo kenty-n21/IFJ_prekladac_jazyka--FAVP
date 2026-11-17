@@ -6,9 +6,6 @@
 #include "generator.h"
 #include <stdio.h>
 #include <stdlib.h>
-
-static int label_counter = 0; // pocitadlo navesti/skokov
-#include "generator.h"
 #include <string.h>
 
 static int label_counter = 0; // pocitadlo navesti/skokov
@@ -66,10 +63,6 @@ void gen_flush_defvars(void) {
         printf("DEFVAR LF@%s\n", defvar_buf[i]);
     }
     defvar_count = 0;
-}
-
-void gen_var_declare(const char *name) {
-    printf("DEFVAR LF@%s\n", name);
 }
 
 void gen_var_assign(const char *name) {
@@ -231,11 +224,6 @@ void gen_func_start(const char *name) {
 void gen_func_end(void) {
     printf("POPFRAME\n");
     printf("RETURN\n");
-}
-
-void gen_func_param(const char *name, int index) {
-    printf("DEFVAR LF@%s\n", name);
-    printf("MOVE LF@%s LF@%%%d\n", name, index);
 }
 
 void gen_func_param(const char *name, int index) {
@@ -546,7 +534,9 @@ void gen_subStr(void) {
     printf("RETURN\n");
 }
 
-void generate_program(AstStmt *s) {
+void generate_program(AstProgram *program) {
+    if (program == NULL) return;
+
     gen_init();
     gen_print();
     gen_readLine();
@@ -558,19 +548,32 @@ void generate_program(AstStmt *s) {
     gen_chr();
     gen_ord();
     gen_subStr();
-    gen_func_start(s->func->name);
 
-    for (int i = 0; i < param_count; i++) {
-        gen_func_param(s[i]->param_name, s[i]->index);
-    };
-    collect_defvars(s->func->body);
-    gen_flush_defvars();
-    gen_statements(s->func->body);
-    gen_func_end();
-    gen_main_start();
-    collect_defvars(s);
-    gen_flush_defvars();
-    gen_statements(s);
+    for (AstFunc *f = program->first_func; f != NULL; f = f->next) {
 
-    gen_main_end();
+        if (f->is_main) {
+            gen_main_start();       // LABEL $$main, CREATEFRAME, PUSHFRAME
+        } else {
+            gen_func_start(f->name);        // LABEL $name, PUSHFRAME
+
+            // Preberieme parametre funkcie (LF@param = LF@%i)
+            for (int i = 0; i < f->param_count; i++) {
+                gen_func_param(f->param_names[i], i);
+            }
+        }
+
+        // Pozbierame a vypiseme všetky DEFVAR pre telo funkcie
+        collect_defvars(f->body);
+        gen_flush_defvars();
+
+        // Vygenerujeme samotne prikazy tela funkcie
+        gen_block(f->body);
+
+        // Ukoncime funkciu
+        if (f->is_main) {
+            gen_main_end(); // POPFRAME
+        } else {
+            gen_func_end(); // POPFRAME, RETURN
+        }
+    }
 }

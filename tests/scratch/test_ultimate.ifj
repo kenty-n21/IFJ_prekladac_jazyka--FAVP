@@ -1,0 +1,89 @@
+import ifj26.*
+
+def gcd(a : Int, b : Int) : Int =
+    var x : Int = a
+    var y : Int = b
+    while y != 0 do
+        var temp : Int = y
+        var q : Int = x / y
+        var prod : Int = q * y
+        y = x - prod
+        x = temp
+    return x
+
+def factorial(n : Int) : Int =
+    if n <= 1 then
+        return 1
+    else
+        val prev = n - 1
+        val sub = factorial(prev)
+        val res = n * sub
+        return res
+
+def power(base : Double, exp : Int) : Double =
+    var res : Double = 1.0
+    var i : Int = 0
+    while i < exp do
+        res = res * base
+        i = i + 1
+    return res
+
+def test_expr(a : Int, b : Int, c : Int, d : Double) : Double =
+    val step1 = (a + b) * (c - 2)
+    val step2 = step1 / (b + 1)
+    val step3 = d * 2.5 + step2
+    return step3
+
+@main
+def main() : Unit =
+    val title = "=== KOMPLEXNY TEST: PARSER + EXPR + GENERATOR ===\n"
+    print(title)
+
+    val g = gcd(48, 18)
+    val msg_gcd = "GCD(48, 18) = "
+    print(msg_gcd)
+    print(g)
+
+    val f = factorial(6)
+    val msg_fact = "Factorial(6) = "
+    print(msg_fact)
+    print(f)
+
+    val p = power(2.5, 3)
+    val msg_pow = "Power(2.5, 3) = "
+    print(msg_pow)
+    print(p)
+
+    val calc = test_expr(10, 4, 8, 3.2)
+    val msg_calc = "TestExpr vysledok = "
+    print(msg_calc)
+    print(calc)
+
+    val orig_str = "IFJ26_Projekt_Kompilator"
+    val dlzka = strLength(orig_str)
+    val znak = ord(orig_str, 0)
+    val podretazec = subStr(orig_str, 6, 13)
+    val novy_znak = chr(65)
+    print(dlzka)
+    print(znak)
+    print(podretazec)
+    print(novy_znak)
+
+    var counter : Int = 3
+    while counter > 0 do
+        var vnutorna_var : Int = counter * 10
+        if vnutorna_var >= 20 then
+            val v1 = "Vetva A (counter >= 2): "
+            print(v1)
+            print(vnutorna_var)
+        else
+            val v2 = "Vetva B (counter < 2): "
+            print(v2)
+            print(vnutorna_var)
+        counter = counter - 1
+
+    val str_a = "Koniec "
+    val str_b = "testu "
+    val str_c = "uspesny!"
+    val spojene = str_a + str_b + str_c
+    print(spojene)

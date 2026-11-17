@@ -11,7 +11,7 @@ TARGET = compiler
 # Neskor pridat aj: expressions.c, generator.c, hashtable.c
 SRCS = main.c scanner.c stack.c symtable.c parser.c expressions.c generator.c
 
-OBJS = $(SRCS: .c=.o)
+OBJS = $(SRCS:.c=.o)
 
 all: $(TARGET)
 
@@ -26,4 +26,4 @@ $(TARGET): $(OBJS)
 clean:
 	rm -f $(TARGET) *.o
 
-.PHONY: build clean
+.PHONY: all clean

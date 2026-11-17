@@ -1,6 +1,7 @@
-import ifj
+import ifj26.*
 
-@main def main() : unit =
+@main
+def main() : Unit =
     var result: Int = add(5, 10)
     return
 
