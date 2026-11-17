@@ -64,6 +64,10 @@ void gen_while_start(int label_id) {
     gen_expr(node->condition);
 }
 
+void gen_while_end(int label_id) {
+    printf("JUMP $$while_%d\n", label_id);
+    printf("LABEL $$while_end_%d\n", label_id);
+}
 void gen_expr(ExprNode *node) {
     if (node == NULL)
         return;
