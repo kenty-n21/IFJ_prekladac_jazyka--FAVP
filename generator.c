@@ -6,9 +6,12 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "generator.h"
 
 static int label_counter = 0;   //pocitadlo navesti/skokov
+static char defvar_buf[256][64];
+static int defvar_count = 0;
 
 int gen_new_label(void){
     return label_counter++;
@@ -22,7 +25,18 @@ void gen_init(void){
 } 
 
 void gen_var_declare(const char *name){
-    printf("DEFVAR LF@%s\n",name);
+    // Neupisujeme hned! Len ulozime meno.
+    strncpy(defvar_buf[defvar_count], name, 63);
+    defvar_buf[defvar_count][63] = '\0';
+    defvar_count++;
+}
+
+void gen_flush_defvars(void){
+    // Vypise vsetky nazbirane DEFVAR naraz a resetuje buffer
+    for(int i = 0; i < defvar_count; i++){
+        printf("DEFVAR LF@%s\n", defvar_buf[i]);
+    }
+    defvar_count = 0;
 }
 
 void gen_var_assign(const char *name){
@@ -160,4 +174,8 @@ void gen_expr(ExprNode *node){
             break;
         default: break;
     }
+}
+
+void generate_program(ExprNode *node){
+    (void)node;     //iba zatial
 }
