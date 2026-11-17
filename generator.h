@@ -26,6 +26,10 @@ void gen_if_else(int label_id);
 
 void gen_if_end(int label_id);
 
+void gen_while_start(int label_id, ExprNode *node);
+
+void gen_while_end(int label_id);
+
 //generuje kod z AST stromu
 //zatial pouziva strukturu uzla AST ktoru vyuziva expressions.c/.h
 void gen_expr(ExprNode *node);
