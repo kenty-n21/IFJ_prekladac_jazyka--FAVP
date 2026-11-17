@@ -285,3 +285,42 @@ void gen_readDouble(void) {
     printf("POPFRAME\n");
     printf("RETURN\n");
 }
+
+void gen_toStr(void) {
+    printf("LABEL $$toStr\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@type\n");
+    printf("DEFVAR LF@SYMB\n");
+    printf("POPS LF@val\n");
+    printf("TYPE LF@type LF@val\n");
+    printf("JUMPIFEQ $$toStr_float LF@type string@float\n");
+    printf("JUMPIFEQ $$toStr_unit LF@type string@nil\n");
+    printf("JUMPIFEQ $$toStr_int LF@type string@int\n");
+    printf("JUMPIFEQ $$toStr_bool LF@type string@bool\n");
+    printf("JUMPIFEQ $$toStr_string LF@type string@string\n");
+    printf("JUMP $$toStr_end\n");
+    printf("LABEL $$toStr_unit\n");
+    printf("PUSHS string@nil\n");
+    printf("JUMP $$toStr_end\n");
+    printf("LABEL $$toStr_float\n");
+    printf("FLOAT2STR LF@SYMB LF@val\n");
+    printf("PUSHS LF@SYMB\n");
+    printf("JUMP $$toStr_end\n");
+    printf("LABEL $$toStr_int\n");
+    printf("INT2STR LF@SYMB LF@val\n");
+    printf("PUSHS LF@SYMB\n");
+    printf("JUMP $$toStr_end\n");
+    printf("LABEL $$toStr_bool\n");
+    printf("JUMPIFEQ $$toStr_bool_true LF@val bool@true\n");
+    printf("PUSHS string@false\n");
+    printf("JUMP $$toStr_end\n");
+    printf("LABEL $$toStr_bool_true\n");
+    printf("PUSHS string@true\n");
+    printf("JUMP $$toStr_end\n");
+    printf("LABEL $$toStr_string\n");
+    printf("PUSHS LF@val\n");
+    printf("LABEL $$toStr_end\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
