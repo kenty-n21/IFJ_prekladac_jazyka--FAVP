@@ -269,3 +269,19 @@ void gen_readInt(void) {
     printf("POPFRAME\n");
     printf("RETURN\n");
 }
+void gen_readDouble(void) {
+    printf("LABEL $$readDouble\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@type\n");
+    printf("READ LF@val float\n");
+    printf("TYPE LF@type LF@val\n");
+    printf("JUMPIFEQ $$readDouble_eof LF@type string@nil\n");
+    printf("PUSHS LF@val\n");
+    printf("JUMP $$readDouble_end\n");
+    printf("LABEL $$readDouble_eof\n");
+    printf("PUSHS float@0x0p+0\n");
+    printf("LABEL $$readDouble_end\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
