@@ -6,34 +6,37 @@
 #include "generator.h"
 #include <stdio.h>
 #include <stdlib.h>
+
+static int label_counter = 0; // pocitadlo navesti/skokov
+#include "generator.h"
 #include <string.h>
 
-static int label_counter = 0;   // pocitadlo navesti/skokov
+static int label_counter = 0; // pocitadlo navesti/skokov
 static char defvar_buf[256][64];
 static int defvar_count = 0;
 static void gen_statement(AstStmt *s);
 
-static void gen_call_stmt(AstCall *call){
-    if ( call == NULL)
-        return ;
+static void gen_call_stmt(AstCall *call) {
+    if (call == NULL)
+        return;
 
     gen_call_start();
-    for (int i = 0; i < call->arg_count; i++){
+    for (int i = 0; i < call->arg_count; i++) {
         gen_expr(call->args[i]);
         gen_call_argument(i);
     }
     gen_call(call->name);
 }
 
-static void collect_defvars(AstStmt *s){
-    for (; s != NULL; s = s->next){
-        if(s->kind == AST_VARDEF){
+static void collect_defvars(AstStmt *s) {
+    for (; s != NULL; s = s->next) {
+        if (s->kind == AST_VARDEF) {
             gen_var_declare(s->name);
         }
-        if(s->then_block != NULL){
+        if (s->then_block != NULL) {
             collect_defvars(s->then_block);
         }
-        if (s->else_block != NULL){
+        if (s->else_block != NULL) {
             collect_defvars(s->else_block);
         }
     }
@@ -63,6 +66,10 @@ void gen_flush_defvars(void) {
         printf("DEFVAR LF@%s\n", defvar_buf[i]);
     }
     defvar_count = 0;
+}
+
+void gen_var_declare(const char *name) {
+    printf("DEFVAR LF@%s\n", name);
 }
 
 void gen_var_assign(const char *name) {
@@ -128,7 +135,7 @@ void gen_expr(ExprNode *node) {
             break; // ak bude type_any a ine
         }
         break;
-        
+
     // premenne
     // „Lokální rámec, značíme LF (Local Frame)... slouží pro ukládání lokálních proměnných funkcí a jejich parametrů.“
     case NODE_VAR:
@@ -231,6 +238,11 @@ void gen_func_param(const char *name, int index) {
     printf("MOVE LF@%s LF@%%%d\n", name, index);
 }
 
+void gen_func_param(const char *name, int index) {
+    printf("DEFVAR LF@%s\n", name);
+    printf("MOVE LF@%s LF@%%%d\n", name, index);
+}
+
 void gen_call_start(void) {
     printf("CREATEFRAME\n");
 }
@@ -274,41 +286,40 @@ static void gen_block(AstStmt *s) {
     }
 }
 
-static void gen_statement(AstStmt *s){
-    if(s == NULL){
+static void gen_statement(AstStmt *s) {
+    if (s == NULL) {
         return;
     }
 
-    switch (s->kind)
-    {
+    switch (s->kind) {
     case AST_VARDEF:
     case AST_ASSIGN:
-        if(s->expr != NULL){
+        if (s->expr != NULL) {
             gen_expr(s->expr);
-        }else if (s->call != NULL){
-             gen_call_stmt(s->call);
+        } else if (s->call != NULL) {
+            gen_call_stmt(s->call);
         }
         gen_var_assign(s->name);
         break;
 
-    case AST_IF:{
+    case AST_IF: {
         int lbl = gen_new_label();
-        gen_expr(s->expr);             // vyhodnotí podmienku
-        gen_if_start(lbl);             // ak false, skočí na else
+        gen_expr(s->expr);        // vyhodnotí podmienku
+        gen_if_start(lbl);        // ak false, skočí na else
         gen_block(s->then_block); // telo then
-        gen_if_else(lbl);              // preskočí else a označí začiatok else
+        gen_if_else(lbl);         // preskočí else a označí začiatok else
         if (s->else_block != NULL) {
             gen_block(s->else_block); // telo else (ak existuje)
         }
-        gen_if_end(lbl);               // koniec celého if
+        gen_if_end(lbl); // koniec celého if
         break;
     }
 
-    case AST_WHILE:{
+    case AST_WHILE: {
         int lbl = gen_new_label();
-        gen_while_start(lbl, s->expr);  // začiatok cyklu + test podmienky
-        gen_block(s->then_block);       // telo cyklu
-        gen_while_end(lbl);             // skok späť na začiatok
+        gen_while_start(lbl, s->expr); // začiatok cyklu + test podmienky
+        gen_block(s->then_block);      // telo cyklu
+        gen_while_end(lbl);            // skok späť na začiatok
         break;
     }
     case AST_RETURN:
@@ -327,7 +338,7 @@ static void gen_statement(AstStmt *s){
             gen_expr(s->expr);
         }
         break;
-    
+
     default:
         break;
     }
@@ -535,6 +546,31 @@ void gen_subStr(void) {
     printf("RETURN\n");
 }
 
-void generate_program(AstStmt *program) {
-    (void)program; // iba zatial
+void generate_program(AstStmt *s) {
+    gen_init();
+    gen_print();
+    gen_readLine();
+    gen_readInt();
+    gen_readDouble();
+    gen_toStr();
+    gen_toInt();
+    gen_strLength();
+    gen_chr();
+    gen_ord();
+    gen_subStr();
+    gen_func_start(s->func->name);
+
+    for (int i = 0; i < param_count; i++) {
+        gen_func_param(s[i]->param_name, s[i]->index);
+    };
+    collect_defvars(s->func->body);
+    gen_flush_defvars();
+    gen_statements(s->func->body);
+    gen_func_end();
+    gen_main_start();
+    collect_defvars(s);
+    gen_flush_defvars();
+    gen_statements(s);
+
+    gen_main_end();
 }
