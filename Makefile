@@ -2,8 +2,9 @@
 # Subor: Makefile
 # Autor: Andrej Beles (xbelesa00)
 #
-# AI Prompt: "Pridaj do Makefile komentar, ako po dokonceni parsera pridat
-# parser.c do zoznamu zdrojovych suborov, a oznac ciele build a clean ako .PHONY."
+# AI Prompt: "Priprav robustny Makefile pre prekladac imperativneho jazyka IFJ26,
+# ktory podporuje inkrementalnu kompilaciu cez objektove subory (.o) a automaticky
+# prepoji scanner, parser, tabulku symbolov a generator cieloveho kodu."
 CC = gcc
 CFLAGS = -std=c11 -Wall -Wextra -pedantic -g
 TARGET = compiler

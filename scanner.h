@@ -3,10 +3,10 @@
  * Subor: scanner.h
  * Autor: Andrej Beles (xbelesa00)
  *
- * AI Prompt: "VYGENERUJ MI: Kompletny hlavickovy subor scanner.h pre jazyk
+ * AI Prompt: "VYGENERUJ MI: Predpripraveny hlavickovy subor scanner.h pre jazyk
  * IFJ26 vratane vsetkych klucovych slov, operatorov a podpory pre odsadenie."
  * AI Prompt (uprava): "Odstran 'to', 'until', 'by' z klucovych slov, lebo nie su
- * v zozname klucovych slov v specifikacii IFJ26."
+ * v zozname klucovych slov v specifikacii IFJ26. + Oprav chyby"
  */
 
 #ifndef SCANNER_H

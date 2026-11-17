@@ -3,9 +3,9 @@
  * Subor: scanner.c
  * Autor: Andrej Beles (xbelesa00)
  *
- * AI Prompt: "VYGENERUJ MI: Kompletny scanner.c pre IFJ26 s osetrenim escape
+ * AI Prompt: "VYGENERUJ MI: Predpripraveny scanner.c pre IFJ26 s osetrenim escape
  * sekvencii, viacriadkovych retazcov, prisnou kontrolou cisel, komentarov
- * a sledovanim odsadenia (INDENT/DEDENT) podla specifikacie IFJ26."
+ * a sledovanim odsadenia (INDENT/DEDENT) podla specifikacie IFJ26. + Oprav chyby"
  */
 
 #include <stdio.h>

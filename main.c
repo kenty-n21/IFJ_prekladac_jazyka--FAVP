@@ -5,21 +5,17 @@
  *
  * AI Prompt: "VYGENERUJ MI: Predpripraveny main.c pre IFJ26 s prepinacom
  * medzi testovanim scannera a finalnym volanim parsera."
- *
- * AI Prompt (uprava): "Uprav main.c tak, aby sa zatial dal zostavit bez parsera
- * (parser.h sa includuje az po vypnuti TEST_SCANNER) a volal parser_program()."
  */
 
 #include <stdio.h>
 #include "scanner.h"
 
-// Rezim prekladu: kym nie je hotovy parser, bezi len test scannera.
-// Ked bude parser hotovy: zakomentujte nasledujuci riadok a pridajte parser.c
-// do SRCS v Makefile.
-
+// Rezim prekladu: kym chces testovat len scanner, odkomentuj nasledujuci riadok.
+// #define TEST_SCANNER
 
 #ifndef TEST_SCANNER
 #include "parser.h"
+#include "generator.h"
 #endif
 
 #ifdef TEST_SCANNER
@@ -36,7 +32,7 @@ static void print_token(Token t) {
 /**
  * Hlavny vstupny bod prekladaca IFJ26.
  * Cita zdrojovy kod zo stdin, generuje IFJcode26 na stdout a vracia chybovy kod.
- * Chybove a ladiace vypisy ide na stderr.
+ * Chybove a ladiace vypisy idu na stderr.
  *
  * @return 0 pri uspechu, inak kod chyby (1-7, 10, 99) podla zadania.
  */
@@ -57,13 +53,16 @@ int main(void) {
     }
     return 0;
 #else
-    // Finalny rezim: syntakticka analyza a preklad
+    // Finalny rezim: syntakticka analyza a generovanie IFJcode26
     int result = parser_program();
     if (result != 0) {
         fprintf(stderr, "Preklad skoncil s chybou: %d\n", result);
-    } else {
-        fprintf(stderr, "Preklad prebehol úspešne!\n");
+        return result;
     }
-    return result; // 0 pri uspechu alebo kod chyby 1..10, 99
+
+    // Spustenie generátora cieľového kódu nad vytvoreným AST stromom
+    generate_program(parser_get_program());
+    
+    return 0; // 0 pri úspechu
 #endif
 }
