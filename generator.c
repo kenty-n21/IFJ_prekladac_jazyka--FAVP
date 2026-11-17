@@ -5,6 +5,7 @@
  * Zvoleny pristup generovania kodu z AST, ktory sme vyuzili na vnutornu reprezantaciu naseho kodu
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include "generator.h"
 
 static int label_counter = 0;   //pocitadlo navesti/skokov
@@ -25,13 +26,99 @@ void gen_code(ExprNode *node){
         return;
 
     switch (node->nodetype){
+
+        //ak je v uzli teda node konkretna hodnota
         case NODE_LITERAL:
+
+            switch (node->datatype)
+            {
+            case TYPE_INT:
+                printf("PUSHS int@%s\n",node->value);
+                break;
+            case TYPE_DOUBLE:{
+                double val = strtod(node->value, NULL);
+                printf("PUSHS float@%a\n",val);
+                break;
+            }
+            case TYPE_STRING:
+                printf("PUSHS string@%s\n",node->value);
+                break;
+            case TYPE_BOOL:
+                printf("PUSHS bool@%s\n",node->value);
+                break;
+            case TYPE_UNIT: //pre istotu
+                printf("PUSHS nil@nil\n");
+                break;
+            default: break; //ak bude type_any a ine 
+
+            }
             break;
+        //premenne
+        //„Lokální rámec, značíme LF (Local Frame)... slouží pro ukládání lokálních proměnných funkcí a jejich parametrů.“
         case NODE_VAR:
+            printf("PUSHS LF@%s\n", node->value);
             break;
         case NODE_UNARY:
             break;
+
         case NODE_BINARY:
+
+            gen_code(node->left);
+            //konverzia int na float
+            if(node->datatype == TYPE_DOUBLE && node->left->datatype == TYPE_INT){
+                printf("INT2FLOATS\n");
+            }
+
+            gen_code(node->right);
+            //konverzia int na float
+            if(node->datatype == TYPE_DOUBLE && node->right->datatype == TYPE_INT){
+                printf("INT2FLOATS\n");
+            }
+
+            switch (node->symbol)
+            {
+            case SYM_PLUS:
+                printf("ADDS\n");
+                break;
+            case SYM_MINUS:
+                printf("SUBS\n");
+                break;
+            case SYM_MUL:
+                printf("MULS\n");
+                break;
+            case SYM_DIV:
+                if(node->datatype == TYPE_INT){
+                    printf("IDIVS\n");
+                }else{
+                    printf("DIVS\n");
+                }
+                break;
+
+            case SYM_LT:
+                printf("LTS\n");
+                break;
+            case SYM_GT:
+                printf("GTS\n");
+                break;
+            case SYM_LTE:
+                printf("GTS\n");
+                printf("NOTS\n");
+                break;
+            case SYM_GTE:
+                printf("LTS\n");
+                printf("NOTS\n");
+                break;
+            case SYM_EQ:
+                printf("EQS\n");
+                break;
+            case SYM_NEQ:
+                printf("EQS\n");
+                printf("NOTS\n");
+                break;
+            
+            default:
+                break;
+            }
             break;
         default: break;
     }
