@@ -176,6 +176,29 @@ void gen_expr(ExprNode *node){
     }
 }
 
+void gen_func_start(const char *name){
+    printf("LABEL $%s\n", name);
+    printf("PUSHFRAME\n");
+}
+
+void gen_func_end(void){
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
+
+void gen_call_start(void){
+    printf("CREATEFRAME\n");
+}
+
+void gen_call_argument(int index){
+    printf("DEFVAR TF@%%%d\n", index);
+    printf("POPS TF@%%%d\n", index);
+}
+
+void gen_call(const char *name){
+    printf("CALL $%s\n", name);
+}
+
 void generate_program(ExprNode *node){
     (void)node;     //iba zatial
 }
