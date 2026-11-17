@@ -30,6 +30,17 @@ void gen_if_end(int label_id);
 //zatial pouziva strukturu uzla AST ktoru vyuziva expressions.c/.h
 void gen_expr(ExprNode *node);
 
+//generuje kam ma skocit kod aby mohol vzkonat funkciu a do docasneho ramca vlozi argumenty
+void gen_func_start(const char *name);
+
+void gen_func_end(void);
+
+void gen_call_start(void);
+
+void gen_call_argument(int index);
+
+void gen_call(const char *name);
+
 //prejde cely AST a vygeneruje pomocou pomocnych funkcii kod
 void generate_program(ExprNode *node);
 #endif
