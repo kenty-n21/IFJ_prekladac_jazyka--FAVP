@@ -1,6 +1,7 @@
-/**
+/*
+ * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
+ * Subor: error.h
  * Autor: Veronika Kentošová(xkentov00)
- * hlavičkový súbor pre chybové návratové hodnoty
  */
 #ifndef ERROR_H
 #define ERROR_H

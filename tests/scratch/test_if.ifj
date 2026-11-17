@@ -1,0 +1,9 @@
+import ifj26.*
+
+@main
+def main() : Unit =
+    val x : Int = 5
+    if x > 2 then
+        val y = 10
+    else
+        val z = 20

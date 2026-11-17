@@ -1,20 +1,8 @@
-/**
+/*
+ * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
+ * Subor: stack.c
  * Autor: Veronika Kentošová(xkentov00)
- * implementácia zásobníku
  */
-
-
- /**
-  * init_stack - hotova
-  * insert_terminal_stop_stack - hotov
-  * pop_stack - hotova
-  * get_topterminal_stack - hotovo
-  * top_stack - hotova
-  * is_empty_stack - hotova
-  * free_stack - hotovo
-  * 
-  * este otestovat na testoch
-  */
 #include <stdio.h>      // pre mozne chybove hlasnia
 #include <stdbool.h>    //True a False
 #include "stack.h"

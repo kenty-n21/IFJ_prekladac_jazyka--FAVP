@@ -1,3 +1,8 @@
+/*
+ * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
+ * Subor: parser.h
+ * Autor: Paulína Košťálová (xkostap00)
+ */
 #ifndef PARSER_H
 #define PARSER_H
 
