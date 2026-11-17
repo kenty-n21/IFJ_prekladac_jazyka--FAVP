@@ -1,8 +1,8 @@
 /*
+ * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
+ * Subor: stack.h
  * Autor: Veronika Kentošová(xkentov00)
- * hlavičkový súbor pre zásobník
  */
-
 #ifndef STACK_H
 #define STACK_H
 #include <stdbool.h>

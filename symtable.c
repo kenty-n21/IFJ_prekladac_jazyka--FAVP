@@ -1,8 +1,8 @@
-/* symtable + hastable
-    tvorca : Filip Šimulčík
-    xlogin: xsimulf00
-*/
-
+/*
+ * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
+ * Subor: symtable.c
+ * Autor: Filip Šimulčík(xsimulf00)
+ */
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>

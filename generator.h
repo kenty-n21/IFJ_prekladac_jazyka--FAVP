@@ -1,6 +1,7 @@
-/**
+/*
+ * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
+ * Subor: generator.h
  * Autor: Veronika Kentošová(xkentov00)
- * hlavičkový súbor ku generátoru kód
  */
 #ifndef GENERATOR_H
 #define GENERATOR_H

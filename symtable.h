@@ -1,3 +1,8 @@
+/*
+ * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
+ * Subor: symtable.h
+ * Autor: Filip Šimulčík(xsimulf00)
+ */
 #ifndef SYMTABLE_H
 #define SYMTABLE_H
 #include <stdbool.h>

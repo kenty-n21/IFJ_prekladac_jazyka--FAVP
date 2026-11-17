@@ -1,6 +1,7 @@
-/**
+/*
+ * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
+ * Subor: expressions.c
  * Autor: Veronika Kentošová(xkentov00)
- * implementácia precedenčnej analýzy výrazov
  */
 #include <string.h>
 #include "stack.h"

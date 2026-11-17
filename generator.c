@@ -1,8 +1,7 @@
-/**
+/*
+ * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
+ * Subor: generator.c
  * Autor: Veronika Kentošová(xkentov00) a Filip Šimulčík(xsimulf00)
- * generátor kódu
- *
- * Zvoleny pristup generovania kodu z AST, ktory sme vyuzili na vnutornu reprezantaciu naseho kodu
  */
 #include "generator.h"
 #include <stdio.h>
