@@ -269,6 +269,11 @@ void gen_main_end(void) {
     printf("POPFRAME\n");
 }
 
+static void gen_block(AstStmt *s) {
+    for (; s != NULL; s = s->next) {
+        gen_statement(s);
+    }
+}
 
 static void gen_statement(AstStmt *s){
     if(s == NULL){
