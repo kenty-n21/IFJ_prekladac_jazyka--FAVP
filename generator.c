@@ -359,3 +359,28 @@ void gen_chr(void) {
     printf("POPFRAME\n");
     printf("RETURN\n");
 }
+
+void gen_ord(void) {
+    printf("LABEL $$ord\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@num\n");
+    printf("DEFVAR LF@sym\n");
+    printf("DEFVAR LF@len\n");
+    printf("DEFVAR LF@con\n");
+    printf("POPS LF@num\n");
+    printf("POPS LF@val\n");
+    printf("STRLEN LF@len LF@val\n");
+    printf("LT LF@con LF@num int@0 \n");
+    printf("JUMPIFEQ $$ord_nil LF@con bool@true\n");
+    printf("LT LF@con LF@num LF@len \n");
+    printf("JUMPIFEQ $$ord_nil LF@con bool@false\n");
+    printf("STRI2INT LF@sym LF@val LF@num\n");
+    printf("PUSHS LF@sym\n");
+    printf("JUMP $$ord_end\n");
+    printf("LABEL $$ord_nil\n");
+    printf("PUSHS int@-1\n");
+    printf("LABEL $$ord_end\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");
+}
