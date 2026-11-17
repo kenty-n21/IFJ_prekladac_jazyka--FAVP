@@ -21,7 +21,29 @@ void gen_init(void){
     printf("JUMP $$main\n");
 } 
 
-void gen_code(ExprNode *node){
+void gen_var_declare(const char *name){
+    printf("DEFVAR LF@%s\n",name);
+}
+
+void gen_var_assign(const char *name){
+    printf("POPS LF@%s\n", name);
+}
+
+void gen_if_start(int label_id){
+    printf("PUSHS bool@true\n");
+    printf("JUMPIFNEQS $$else_%d\n", label_id);
+}
+
+void gen_if_else(int label_id){
+    printf("JUMP $$if_end_%d\n", label_id);
+    printf("LABEL $$else_%d\n", label_id);
+}
+
+void gen_if_end(int label_id){
+    printf("LABEL $$if_end_%d\n", label_id);
+}
+
+void gen_expr(ExprNode *node){
     if(node == NULL)
         return;
 
@@ -59,7 +81,7 @@ void gen_code(ExprNode *node){
             printf("PUSHS LF@%s\n", node->value);
             break;
         case NODE_UNARY:
-            gen_code(node->left);
+            gen_expr(node->left);
             if(node->datatype == TYPE_INT){
                 printf("PUSHS int@-1\n");
             }else if (node->datatype == TYPE_DOUBLE){
@@ -71,13 +93,13 @@ void gen_code(ExprNode *node){
 
         case NODE_BINARY:
 
-            gen_code(node->left);
+            gen_expr(node->left);
             //konverzia int na float
             if(node->datatype == TYPE_DOUBLE && node->left->datatype == TYPE_INT){
                 printf("INT2FLOATS\n");
             }
 
-            gen_code(node->right);
+            gen_expr(node->right);
             //konverzia int na float
             if(node->datatype == TYPE_DOUBLE && node->right->datatype == TYPE_INT){
                 printf("INT2FLOATS\n");
