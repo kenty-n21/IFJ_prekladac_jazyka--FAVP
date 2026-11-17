@@ -39,11 +39,19 @@ void gen_func_start(const char *name);
 
 void gen_func_end(void);
 
+void gen_func_param(const char *name, int index);
+
 void gen_call_start(void);
 
 void gen_call_argument(int index);
 
 void gen_call(const char *name);
+
+void gen_print_escaped_string(const char *str);
+
+void gen_main_start(void);
+
+void gen_main_end(void);
 
 //prejde cely AST a vygeneruje pomocou pomocnych funkcii kod
 void generate_program(ExprNode *node);
