@@ -709,7 +709,7 @@ void generate_program(AstProgram *program) {
     gen_strLength();
     gen_chr();
     gen_ord();
-    gen_substr();
+    gen_subStr();
 
     for (AstFunc *f = program->first_func; f != NULL; f = f->next) {
 
