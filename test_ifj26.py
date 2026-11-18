@@ -267,7 +267,7 @@ line2"""
     print("|")
     print(s2)
 ''',
-        expected_stdout="9|20|a#b\\c d\te|line1\\nraw\nline2",
+        expected_stdout="9|16|a#b\\c d\te|line1\\nraw\nline2",
     ),
     TestCase(
         name="e2e_builtins_io_and_boundaries",

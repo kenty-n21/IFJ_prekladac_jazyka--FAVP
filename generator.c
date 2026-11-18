@@ -11,8 +11,44 @@
 static int label_counter = 0; // pocitadlo navesti/skokov
 static char defvar_buf[256][64];
 static int defvar_count = 0;
+static char current_func_exit_label[128]; // exit label pre aktuálnu funkciu
+
+//struktura a zasobnik na sledovanie premenovanym premennych (shadowing)
+typedef struct {
+    char original[64];
+    char renamed[64];
+} ShadowVar;
+
+static ShadowVar shadow_stack[128];
+static int shadow_count = 0;
+
+static const char *get_var_name(const char *orig_name) {
+    for (int i = shadow_count - 1; i >= 0; i--) {
+        if (strcmp(shadow_stack[i].original, orig_name) == 0) {
+            return shadow_stack[i].renamed;
+        }
+    }
+    return orig_name;
+}
+
+static void collect_shadow_for_block(AstStmt *s) {
+    for (; s != NULL; s = s->next) {
+        if (s->kind == AST_VARDEF && s->name != NULL) {
+            char *underscore = strrchr(s->name, '_');
+            if (underscore != NULL && *(underscore + 1) >= '0' && *(underscore + 1) <= '9') {
+                char orig[64];
+                strncpy(orig, s->name, 63);
+                orig[underscore - s->name] = '\0';
+
+                strncpy(shadow_stack[shadow_count].original, orig, 63);
+                strncpy(shadow_stack[shadow_count].renamed, s->name, 63);
+                shadow_count++;
+            }
+        }
+    }
+}
+
 static void gen_statement(AstStmt *s);
-// funkcia na zavolanie funkcie a odovzdanie jej paramatrov
 
 // funckia na pozeranie ci je volana funkcia vstavana
 static bool is_build_fun(const char *name) { //!!!!
@@ -52,18 +88,55 @@ static void gen_call_stmt(AstCall *call) {
 }
 // rekurzivne zbieranie vsetkych lokalnych premennych, aby ich bolo mozne deklarovat na zaciatku funkcie
 static void collect_defvars(AstStmt *s) {
-    for (; s != NULL; s = s->next) {
+for (; s != NULL; s = s->next) {
         if (s->kind == AST_VARDEF) {
-            gen_var_declare(s->name);
+            // Zistíme, koľkokrát sa už meno v tejto funkcii vyskytlo
+            int occurrences = 0;
+            for (int i = 0; i < defvar_count; i++) {
+                if (strcmp(defvar_buf[i], s->name) == 0 ||
+                    (strncmp(defvar_buf[i], s->name, strlen(s->name)) == 0 && defvar_buf[i][strlen(s->name)] == '_')) {
+                    occurrences++;
+                }
+            }
+            if (occurrences == 0) {
+                // Prvy vyskyt ostava nezmeneny
+                gen_var_declare(s->name);
+            } else {
+                // inak pridame suffix
+                char final_name[64];
+                snprintf(final_name, sizeof(final_name), "%s_%d", s->name, occurrences);
+                
+                // Uložíme zmenu do AST uzla pre priradenie hodnoty
+                s->name = malloc(strlen(final_name) + 1);
+                if (s->name != NULL) {
+                    strcpy(s->name, final_name);
+                }
+                // Pridáme mapovanie pôvodné_meno -> nové_meno pre vnútorný blok
+                strncpy(shadow_stack[shadow_count].original, s->name, 63);
+                // ale originál je bez prípony:
+                char orig_clean[64];
+                strncpy(orig_clean, s->name, 63);
+                char *underscore = strrchr(orig_clean, '_');
+                if (underscore) *underscore = '\0';
+                strncpy(shadow_stack[shadow_count].original, orig_clean, 63);
+                strncpy(shadow_stack[shadow_count].renamed, final_name, 63);
+                shadow_count++;
+                gen_var_declare(final_name);
+            }
         }
         if (s->then_block != NULL) {
+            int saved_shadow = shadow_count;
             collect_defvars(s->then_block);
+            shadow_count = saved_shadow;
         }
         if (s->else_block != NULL) {
+            int saved_shadow = shadow_count;
             collect_defvars(s->else_block);
+            shadow_count = saved_shadow;
         }
     }
 }
+
 // generovanie unikatneho poradoveho cisla pre navestie
 int gen_new_label(void) {
     return label_counter++;
@@ -160,7 +233,7 @@ void gen_expr(ExprNode *node) {
     // premenne
     // „Lokální rámec, značíme LF (Local Frame)... slouží pro ukládání lokálních proměnných funkcí a jejich parametrů.“
     case NODE_VAR:
-        printf("PUSHS LF@%s\n", node->value);
+        printf("PUSHS LF@%s\n", get_var_name(node->value));
         break;
     // ukazne funkcie - unarne minusko
     case NODE_UNARY:
@@ -319,18 +392,27 @@ static void gen_statement(AstStmt *s) {
         } else if (s->call != NULL) {
             gen_call_stmt(s->call);
         }
-        gen_var_assign(s->name);
+        gen_var_assign(get_var_name(s->name));
         break;
     // podmienene vetvenie if/else
     case AST_IF: {
         int lbl = gen_new_label();
         gen_expr(s->expr);        // vyhodnotí podmienku
         gen_if_start(lbl);        // ak false, skočí na else
+
+        int saved_shadow1 = shadow_count;
+        collect_shadow_for_block(s->then_block);
         gen_block(s->then_block); // telo then
+        shadow_count = saved_shadow1;
+
         gen_if_else(lbl);         // preskočí else a označí začiatok else
-        if (s->else_block != NULL) {
-            gen_block(s->else_block); // telo else (ak existuje)
-        }
+
+        int saved_shadow2 = shadow_count;
+        collect_shadow_for_block(s->else_block);
+
+        gen_block(s->else_block);
+        shadow_count = saved_shadow2;
+
         gen_if_end(lbl); // koniec celého if
         break;
     }
@@ -338,18 +420,34 @@ static void gen_statement(AstStmt *s) {
     case AST_WHILE: {
         int lbl = gen_new_label();
         gen_while_start(lbl, s->expr); // začiatok cyklu + test podmienky
+        int saved_shadow = shadow_count;
+        collect_shadow_for_block(s->then_block);
         gen_block(s->then_block);      // telo cyklu
+        shadow_count = saved_shadow;
         gen_while_end(lbl);            // skok späť na začiatok
         break;
     }
     // navrat z funkcie
     case AST_RETURN:
-        if (s->expr != NULL) {
-            gen_expr(s->expr);
-        } else if (s->call != NULL) {
-            gen_call_stmt(s->call);
+        if (s->datatype == TYPE_UNIT) {
+            // Unit funkcia: ak má return <expr>, vyhodnotíme a zahodíme, potom pushneme nil@nil
+            if (s->expr != NULL) {
+                gen_expr(s->expr);
+                printf("POPS GF@$tmp1\n"); // zahodíme hodnotu
+            } else if (s->call != NULL) {
+                gen_call_stmt(s->call);
+                printf("POPS GF@$tmp1\n"); // zahodíme výsledok volania
+            }
+            printf("PUSHS nil@nil\n");
+        } else {
+            if (s->expr != NULL) {
+                gen_expr(s->expr);
+            } else if (s->call != NULL) {
+                gen_call_stmt(s->call);
+            }
         }
-        gen_func_end(); // vypíše: POPFRAME a RETURN
+        // Skočíme na exit label funkcie (POPFRAME+RETURN je tam)
+        printf("JUMP %s\n", current_func_exit_label);
         break;
     // samotny vyraz alebo volanie funkcie ako prikaz
     case AST_EXPR:
@@ -609,8 +707,11 @@ void generate_program(AstProgram *program) {
 
         if (f->is_main) {
             gen_main_start(); // LABEL $$main, CREATEFRAME, PUSHFRAME
+            snprintf(current_func_exit_label, sizeof(current_func_exit_label), "$$main_exit");
         } else {
             gen_func_start(f->name); // LABEL $name, PUSHFRAME
+            snprintf(current_func_exit_label, sizeof(current_func_exit_label), "$%s_exit", f->name);
+    
 
             // Preberieme parametre funkcie (LF@param = LF@%i)
             for (int i = 0; i < f->param_count; i++) {
@@ -624,6 +725,10 @@ void generate_program(AstProgram *program) {
 
         // Vygenerujeme samotne prikazy tela funkcie
         gen_block(f->body);
+        printf("LABEL %s\n", current_func_exit_label);
+        if (f->return_type == TYPE_UNIT && !f->is_main) {
+            printf("PUSHS nil@nil\n");
+        }
 
         // Ukoncime funkciu
         if (f->is_main) {

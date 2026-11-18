@@ -1,0 +1,28 @@
+import ifj26.*
+
+def oneLine(x: Int) = x * 3 + 1
+
+def discardTail(s: String): Unit =
+    print(s)
+    42
+
+def discardReturn(s: String): Unit =
+    print(s)
+    return 999
+
+def endsWithVar(): Unit =
+    val local = 123
+
+@main def main(): Unit =
+    val v = oneLine(4)
+    val u1: Unit = discardTail("A")
+    val u2: Unit = discardReturn("B")
+    val u3: Unit = endsWithVar()
+    print(v)
+    print("|")
+    print(u1)
+    print("|")
+    print(u2)
+    print("|")
+    print(u3)
+
