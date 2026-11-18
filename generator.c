@@ -389,8 +389,15 @@ static void gen_statement(AstStmt *s) {
     case AST_ASSIGN:
         if (s->expr != NULL) {
             gen_expr(s->expr);
+
+            if(s->datatype == TYPE_DOUBLE && s->expr->datatype == TYPE_INT){
+                printf("INT2FLOATS\n");
+            }
         } else if (s->call != NULL) {
             gen_call_stmt(s->call);
+            if (s->datatype == TYPE_DOUBLE && s->call->ret_type == TYPE_INT) {
+                printf("INT2FLOATS\n");
+            }
         }
         gen_var_assign(get_var_name(s->name));
         break;
