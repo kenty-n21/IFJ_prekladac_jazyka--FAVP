@@ -284,8 +284,10 @@ static Token scan_token(void) {
             at_line_start = 0;
 
             if (paren_depth > 0) {
-                // Vo vnutri zatvoriek musi byt novy fyzicky riadok odsadeny viac ako zaciatok logickeho riadku [sekcia 1.2]
-                if (current_spaces <= indent_stack[indent_top]) {
+                // Vo vnutri zatvoriek musi byt novy fyzicky riadok odsadeny viac ako zaciatok logickeho riadku [sekcia 1.2],
+                // vynimkou je riadok zacinajuci uzatvaracou zatvorkou ')', ktory sa smie vratit na uroven bloku.
+                if ((c == ')' && current_spaces < indent_stack[indent_top]) ||
+                    (c != ')' && current_spaces <= indent_stack[indent_top])) {
                     token.type = TOKEN_ERROR;
                     return token;
                 }
