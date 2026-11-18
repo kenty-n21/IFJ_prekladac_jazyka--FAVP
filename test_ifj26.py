@@ -731,6 +731,10 @@ def run_test(tc: TestCase, compiler: str, interpreter: str, verbose: bool) -> tu
     if tc.expected_compile_rc != 0:
         return True, "OK"
 
+    # Ak interpreter nie je zadaný alebo je "dummy", skončíme po úspešnom preklade
+    if not interpreter or interpreter.lower() in ("dummy", "none", "skip"):
+        return True, "OK (compile-only)"
+
     # Inak spustíme vygenerovaný IFJcode26 v ic26int
     with tempfile.NamedTemporaryFile(mode="wb", suffix=".ifjcode26", delete=False) as tmp:
         tmp.write(comp_proc.stdout)
