@@ -1,8 +1,8 @@
-/*
- * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
- * Subor: symtable.c
- * Autor: Filip Šimulčík(xsimulf00)
- */
+/* symtable + hastable
+    tvorca : Filip Šimulčík
+    xlogin: xsimulf00
+*/
+
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -17,8 +17,8 @@ typedef enum {
     TYPE_UNIT,
     TYPE_ANY,
 } Datatype;
-
 typedef struct symtable symtable; // to na to aby kompilator vedel ze tato struktura exituje(bez toho to nejde)
+
 typedef struct {
     char *meno;
     Datatype typ;
@@ -138,8 +138,8 @@ Symboldata *hash_table_lookup(char *s, symtable *t) {
 }
 
 char *make_compose_key(int scope_level, char *meno) {
-
     int len = snprintf(NULL, 0, "%d$%s", scope_level, meno); // funkcia ktora pise do pamati na nejake dane miesto( ak je tam null nezapise nikam)
+
     char *key = malloc(len + 1);
     if (key == NULL) {
         return NULL;
@@ -186,7 +186,6 @@ bool insert_func(symtable *t, char *meno, Datatype return_typ, int param_count, 
     if (t == NULL || meno == NULL) {
         return false;
     }
-
     Symboldata *s = malloc(sizeof(Symboldata));
     if (s == NULL) {
         return false;
@@ -252,7 +251,7 @@ void insert_included_fun(symtable *t) {
     }
     *typ = TYPE_ANY;
     insert_func(t, "print", TYPE_UNIT, 1, typ);
-    insert_func(t, "readLine",TYPE_STRING, 0, NULL);
+    insert_func(t, "readLine", TYPE_STRING, 0, NULL);
     insert_func(t, "readInt", TYPE_INT, 0, NULL);
     insert_func(t, "readDouble", TYPE_DOUBLE, 0, NULL);
     Datatype *typ1 = malloc(sizeof(Datatype));
@@ -265,13 +264,13 @@ void insert_included_fun(symtable *t) {
     if (typ2 == NULL) {
         return;
     }
-    *typ2 =TYPE_DOUBLE;
+    *typ2 = TYPE_DOUBLE;
     insert_func(t, "toInt", TYPE_INT, 1, typ2);
     Datatype *typ3 = malloc(sizeof(Datatype));
     if (typ3 == NULL) {
         return;
     }
-    *typ3 =TYPE_STRING;
+    *typ3 = TYPE_STRING;
     insert_func(t, "strLength", TYPE_INT, 1, typ3);
     Datatype *typ4 = malloc(sizeof(Datatype));
     if (typ4 == NULL) {
@@ -285,7 +284,7 @@ void insert_included_fun(symtable *t) {
     }
     typ5[0] = TYPE_STRING;
     typ5[1] = TYPE_INT;
-    insert_func(t, "ord",TYPE_INT, 2, typ5);
+    insert_func(t, "ord", TYPE_INT, 2, typ5);
     Datatype *typ6 = malloc(sizeof(Datatype) * 3);
     if (typ6 == NULL) {
         return;
@@ -293,7 +292,7 @@ void insert_included_fun(symtable *t) {
     typ6[0] = TYPE_STRING;
     typ6[1] = TYPE_INT;
     typ6[2] = TYPE_INT;
-    insert_func(t, "subStr", TYPE_STRING, 3, typ6);
+    insert_func(t, "substr", TYPE_STRING, 3, typ6);
 }
 
 // danie prec zanorenych premmennych v if alebo while atd.

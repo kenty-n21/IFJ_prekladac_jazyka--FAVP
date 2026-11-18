@@ -13,16 +13,42 @@ static char defvar_buf[256][64];
 static int defvar_count = 0;
 static void gen_statement(AstStmt *s);
 // funkcia na zavolanie funkcie a odovzdanie jej paramatrov
+
+// funckia na pozeranie ci je volana funkcia vstavana
+static bool is_build_fun(const char *name) {
+    if (name == NULL) {
+        return false;
+    }
+    return strcmp(name, "print") == 0 ||
+           strcmp(name, "readLine") == 0 ||
+           strcmp(name, "readInt") == 0 ||
+           strcmp(name, "readDouble") == 0 ||
+           strcmp(name, "toStr") == 0 ||
+           strcmp(name, "toInt") == 0 ||
+           strcmp(name, "strLength") == 0 ||
+           strcmp(name, "substr") == 0 ||
+           strcmp(name, "ord") == 0 ||
+           strcmp(name, "chr") == 0;
+}
+
 static void gen_call_stmt(AstCall *call) {
     if (call == NULL)
         return;
 
     gen_call_start();
-    for (int i = 0; i < call->arg_count; i++) { // prechadzanie vsetkych argumentov volania z lava do prava
-        gen_expr(call->args[i]);
-        gen_call_argument(i);
+    // kontrola ci je to vstavana funkcia
+    if (is_build_fun(call->name)) {
+        for (int i = 0; i < call->arg_count; i++) {
+            gen_expr(call->args[i]);
+        }
+        printf("CALL $$%s\n", call->name);
+    } else {
+        for (int i = 0; i < call->arg_count; i++) { // prechadzanie vsetkych argumentov volania z lava do prava
+            gen_expr(call->args[i]);
+            gen_call_argument(i);
+        }
+        gen_call(call->name);
     }
-    gen_call(call->name);
 }
 // rekurzivne zbieranie vsetkych lokalnych premennych, aby ich bolo mozne deklarovat na zaciatku funkcie
 static void collect_defvars(AstStmt *s) {
@@ -152,13 +178,13 @@ void gen_expr(ExprNode *node) {
 
         gen_expr(node->left);
         // konverzia int na float
-        if (node->datatype == TYPE_DOUBLE && node->left->datatype == TYPE_INT) {
+        if (node->left->datatype == TYPE_INT && node->right->datatype == TYPE_DOUBLE) {
             printf("INT2FLOATS\n");
         }
 
         gen_expr(node->right);
         // konverzia int na float
-        if (node->datatype == TYPE_DOUBLE && node->right->datatype == TYPE_INT) {
+        if (node->right->datatype == TYPE_INT && node->left->datatype == TYPE_DOUBLE) {
             printf("INT2FLOATS\n");
         }
 
@@ -365,12 +391,12 @@ void gen_readLine(void) {
     printf("DEFVAR LF@type\n");
     printf("READ LF@val string\n");
     printf("TYPE LF@type LF@val\n");
-    printf("JUMPIFEQ $$readLine_eof LF@type string@nil\n"); // ak sa nacita eof respektive nic tak skoci na koniec a ukonci sa
+    printf("JUMPIFEQ $readLine_eof LF@type string@nil\n"); // ak sa nacita eof respektive nic tak skoci na koniec a ukonci sa
     printf("PUSHS LF@val\n");
-    printf("JUMP $$readLine_end\n");
-    printf("LABEL $$readLine_eof\n");
+    printf("JUMP $readLine_end\n");
+    printf("LABEL $readLine_eof\n");
     printf("PUSHS string@\n");
-    printf("LABEL $$readLine_end\n");
+    printf("LABEL $readLine_end\n");
     printf("POPFRAME\n");
     printf("RETURN\n");
 }
@@ -382,12 +408,12 @@ void gen_readInt(void) {
     printf("DEFVAR LF@type\n");
     printf("READ LF@val int\n");
     printf("TYPE LF@type LF@val\n");
-    printf("JUMPIFEQ $$readInt_eof LF@type string@nil\n"); // ak sa nacita eof respektive nic tak skoci na koniec a ukonci sa
+    printf("JUMPIFEQ $readInt_eof LF@type string@nil\n"); // ak sa nacita eof respektive nic tak skoci na koniec a ukonci sa
     printf("PUSHS LF@val\n");
-    printf("JUMP $$readInt_end\n");
-    printf("LABEL $$readInt_eof\n");
+    printf("JUMP $readInt_end\n");
+    printf("LABEL $readInt_eof\n");
     printf("PUSHS int@0\n");
-    printf("LABEL $$readInt_end\n");
+    printf("LABEL $readInt_end\n");
     printf("POPFRAME\n");
     printf("RETURN\n");
 }
@@ -426,7 +452,7 @@ void gen_toStr(void) {
     printf("JUMPIFEQ $$toStr_string LF@type string@string\n");
     printf("JUMP $$toStr_end\n");
     printf("LABEL $$toStr_unit\n");
-    printf("PUSHS string@nil\n");
+    printf("PUSHS string@()\n");
     printf("JUMP $$toStr_end\n");
     printf("LABEL $$toStr_float\n");
     printf("FLOAT2STR LF@SYMB LF@val\n");
@@ -512,8 +538,8 @@ void gen_ord(void) {
     printf("RETURN\n");
 }
 // vytvorenie vstavanej funckie subStr
-void gen_subStr(void) {
-    printf("LABEL $$subStr\n");
+void gen_substr(void) {
+    printf("LABEL $$substr\n");
     printf("PUSHFRAME\n");
     printf("DEFVAR LF@val\n");
     printf("DEFVAR LF@start\n");
@@ -529,13 +555,13 @@ void gen_subStr(void) {
     printf("STRLEN LF@len LF@val\n");
     // kontrola 4 podmienok intervalu
     printf("LT LF@con LF@start int@0\n");
-    printf("JUMPIFEQ $$subStr_end LF@con bool@true\n");
+    printf("JUMPIFEQ $$subStr_err LF@con bool@true\n");
     printf("LT LF@con LF@end int@0\n");
-    printf("JUMPIFEQ $$subStr_end LF@con bool@true\n");
+    printf("JUMPIFEQ $$subStr_err LF@con bool@true\n");
     printf("LT LF@con LF@end LF@start\n");
-    printf("JUMPIFEQ $$subStr_end LF@con bool@true\n");
+    printf("JUMPIFEQ $$subStr_err LF@con bool@true\n");
     printf("LT LF@con LF@len LF@end\n");
-    printf("JUMPIFEQ $$subStr_end LF@con bool@true\n");
+    printf("JUMPIFEQ $$subStr_err LF@con bool@true\n");
     // ak plati interval ide sa do looopu kde sa znak po znaku vysklada vysledny retazec
     printf("LABEL $$subStr_loop\n");
     printf("LT LF@con LF@start LF@end\n");
@@ -549,6 +575,8 @@ void gen_subStr(void) {
     printf("PUSHS LF@res\n");
     printf("POPFRAME\n");
     printf("RETURN\n");
+    printf("LABEL $$subStr_err\n");
+    printf("EXIT int@40\n");
 }
 // logicke vystavanie generatora
 void generate_program(AstProgram *program) {
@@ -565,7 +593,7 @@ void generate_program(AstProgram *program) {
     gen_strLength();
     gen_chr();
     gen_ord();
-    gen_subStr();
+    gen_substr();
 
     for (AstFunc *f = program->first_func; f != NULL; f = f->next) {
 
