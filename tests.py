@@ -189,6 +189,7 @@ Y\\nZ\"\"\"
   val lineEof: String = readLine()
 
   val sDouble: String = toStr(dOk)
+  val sBad: String = toStr(dBad)
   val sUnit: String = toStr(())
   val eofLen: Int = strLength(lineEof)
 
@@ -196,6 +197,7 @@ Y\\nZ\"\"\"
   val wLen: Int = strLength(word)
   val sub1: String = substr(word, 1, 4)
   val subEmpty: String = substr(word, 2, 2)
+  val subEmptyLen: Int = strLength(subEmpty)
   val c1: Int = ord(word, 1)
   val cEmpty: Int = ord("", 0)
   val cOob: Int = ord(word, 99)
@@ -207,7 +209,7 @@ Y\\nZ\"\"\"
   print("|")
   print(sDouble)
   print("|")
-  print(toStr(dBad))
+  print(sBad)
   print("|")
   print(sUnit)
   print("|")
@@ -217,7 +219,7 @@ Y\\nZ\"\"\"
   print("|")
   print(sub1)
   print("|")
-  print(strLength(subEmpty))
+  print(subEmptyLen)
   print("|")
   print(c1)
   print("|")

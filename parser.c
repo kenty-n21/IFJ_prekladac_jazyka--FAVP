@@ -323,6 +323,18 @@ static ExprNode *parse_term(Datatype *type){
         *type = TYPE_STRING;
         break;
 
+    case TOKEN_LPAREN:
+        if(value[0] != '\0'){
+            syntax_error();
+        }
+        fetch_token();
+        if(current_token.type != TOKEN_RPAREN){
+            syntax_error();
+        }
+        node = create_leaf(NODE_LITERAL, TYPE_UNIT, "()");
+        *type = TYPE_UNIT;
+        break;
+
     case TOKEN_IDENTIFIER:{
         Symboldata *var = find_var(current_symtable, current_scope_level, current_token.attribute);
         if(var == NULL){

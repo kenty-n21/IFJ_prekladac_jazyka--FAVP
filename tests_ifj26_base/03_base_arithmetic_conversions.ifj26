@@ -1,0 +1,35 @@
+import ifj26.*
+
+@main def main(): Unit =
+  val big: Int = 1_000_000
+  val dLit: Double = 2_5.5_0
+  val dFromInt: Double = 5
+
+  val d1: Int = -5 / 2
+  val d2: Int = 5 / -2
+  val d3: Int = -5 / -2
+  val prec: Int = 2 + 3 * 4 - 10 / 3
+
+  val mixed: Double = dFromInt + dLit / 2 - 1
+  val negD: Double = -3.9
+  val posD: Double = 3.9
+  val t1: Int = toInt(posD)
+  val t2: Int = toInt(negD)
+
+  val sMixed: String = toStr(mixed)
+  print(big)
+  print("|")
+  print(d1)
+  print("|")
+  print(d2)
+  print("|")
+  print(d3)
+  print("|")
+  print(prec)
+  print("|")
+  print(sMixed)
+  print("|")
+  print(t1)
+  print("|")
+  print(t2)
+  print("\n")

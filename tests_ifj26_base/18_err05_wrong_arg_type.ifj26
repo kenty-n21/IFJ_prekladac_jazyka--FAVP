@@ -1,0 +1,7 @@
+import ifj26.*
+
+def takesInt(x: Int): Unit =
+  ()
+
+@main def main(): Unit =
+  takesInt(3.14)

@@ -1,0 +1,4 @@
+import ifj26.*
+
+@main def main(): Unit =
+  val s: String = substr("abc", 2, 1)

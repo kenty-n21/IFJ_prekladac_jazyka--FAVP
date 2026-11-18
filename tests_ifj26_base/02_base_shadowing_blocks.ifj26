@@ -1,0 +1,22 @@
+import ifj26.*
+
+@main def main(): Unit =
+  val x: Int = 10
+  var acc: Int = 0
+  if x > 5 then
+    val x: String = "inner"
+    print(x)
+    print("|")
+    var i: Int = 0
+    while i < 3 do
+      val x: Int = 4
+      acc = acc + x; i = i + 1
+    print(x)
+    print("|")
+  else
+    ()
+
+  print(x)
+  print("|")
+  print(acc)
+  print("\n")

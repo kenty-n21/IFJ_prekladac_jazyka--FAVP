@@ -1,0 +1,37 @@
+import ifj26.*
+
+def isEven(n: Int): Int =
+  if n == 0 then
+    return 1
+  else
+    val next: Int = n - 1
+    val res: Int = isOdd(next)
+    return res
+
+def isOdd(n: Int): Int =
+  if n == 0 then
+    return 0
+  else
+    val next: Int = n - 1
+    val res: Int = isEven(next)
+    return res
+
+def fib(n: Int): Int =
+  if n <= 1 then
+    return n
+  else
+    val n1: Int = n - 1
+    val n2: Int = n - 2
+    val a: Int = fib(n1)
+    val b: Int = fib(n2)
+    val sum: Int = a + b
+    return sum
+
+@main def main(): Unit =
+  val n: Int = readInt()
+  val f: Int = fib(n)
+  val e: Int = isEven(f)
+  print(f)
+  print(" ")
+  print(e)
+  print("\n")
