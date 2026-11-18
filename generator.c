@@ -15,7 +15,7 @@ static void gen_statement(AstStmt *s);
 // funkcia na zavolanie funkcie a odovzdanie jej paramatrov
 
 // funckia na pozeranie ci je volana funkcia vstavana
-static bool is_build_fun(const char *name) {
+static bool is_build_fun(const char *name) { //!!!!
     if (name == NULL) {
         return false;
     }
@@ -38,7 +38,7 @@ static void gen_call_stmt(AstCall *call) {
     gen_call_start();
     // kontrola ci je to vstavana funkcia
     if (is_build_fun(call->name)) {
-        for (int i = 0; i < call->arg_count; i++) {
+        for (int i = 0; i < call->arg_count; i++) { //!!!!
             gen_expr(call->args[i]);
         }
         printf("CALL $$%s\n", call->name);
@@ -178,13 +178,13 @@ void gen_expr(ExprNode *node) {
 
         gen_expr(node->left);
         // konverzia int na float
-        if (node->left->datatype == TYPE_INT && node->right->datatype == TYPE_DOUBLE) {
+        if (node->left->datatype == TYPE_INT && node->right->datatype == TYPE_DOUBLE) { //!!!
             printf("INT2FLOATS\n");
         }
 
         gen_expr(node->right);
         // konverzia int na float
-        if (node->right->datatype == TYPE_INT && node->left->datatype == TYPE_DOUBLE) {
+        if (node->right->datatype == TYPE_INT && node->left->datatype == TYPE_DOUBLE) { //!!!!
             printf("INT2FLOATS\n");
         }
 
@@ -505,11 +505,21 @@ void gen_chr(void) {
     printf("PUSHFRAME\n");
     printf("DEFVAR LF@val\n");
     printf("DEFVAR LF@sym\n");
+    printf("DEFVAR LF@cond\n");
     printf("POPS LF@val\n");
+    printf("LT LF@cond LF@val int@0\n");
+    printf("JUMPIFEQ $$chr_invalid LF@cond bool@true\n");
+    printf("GT LF@cond LF@val int@127\n");
+    printf("JUMPIFEQ $$chr_invalid LF@cond bool@true\n");
     printf("INT2CHAR LF@sym LF@val\n"); // premeni cislo na znak
+    printf("JUMP $$chr_end\n");
+
+    printf("LABEL $$chr_end\n");
     printf("PUSHS LF@sym\n");
     printf("POPFRAME\n");
     printf("RETURN\n");
+    printf("LABEL $$chr_invalid\n");
+    printf("EXIT int@40\n");
 }
 // vytvorenie vstavanej funckie ord
 void gen_ord(void) {
