@@ -13,7 +13,6 @@
 #include "parser.h"
 #include "scanner.h"        
 #include "stack.h"
-#include "hashtable.h"
 #include "symtable.h"
 #include "expressions.h"
 

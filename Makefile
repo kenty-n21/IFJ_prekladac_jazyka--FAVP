@@ -8,8 +8,7 @@
 CC = gcc
 CFLAGS = -std=c11 -Wall -Wextra -pedantic -g
 TARGET = compiler
-# Po dokonceni parsera (a vypnuti TEST_SCANNER v main.c) pridat: parser.c
-# Neskor pridat aj: expressions.c, generator.c, hashtable.c
+
 SRCS = main.c scanner.c stack.c symtable.c parser.c expressions.c generator.c
 
 OBJS = $(SRCS:.c=.o)
