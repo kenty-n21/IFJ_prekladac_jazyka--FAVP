@@ -1,7 +1,0 @@
-import ifj26.*
-
-def f(p: Int): Unit =
-  p = 10
-
-@main def main(): Unit =
-  ()

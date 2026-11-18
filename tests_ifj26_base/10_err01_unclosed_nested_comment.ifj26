@@ -1,4 +1,0 @@
-import ifj26.*
-/* outer /* inner */
-@main def main(): Unit =
-  ()
