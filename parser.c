@@ -705,7 +705,7 @@ static AstStmt *parse_return(void){
     if(!has_value){
         if(!current_func_explicit || current_func_ret_type != TYPE_UNIT){
             fprintf(stderr, "semantic error: return without value is not allowed here\n");
-            exit(6);
+            exit(10);
         }
     }
     else{
@@ -714,7 +714,7 @@ static AstStmt *parse_return(void){
             exit(6);
         }
         check_not_bool(expr_type);
-        if(!is_compatible(current_func_ret_type, expr_type)){
+        if(current_func_ret_type != TYPE_UNIT && !is_compatible(current_func_ret_type, expr_type)){
             fprintf(stderr, "semantic error: return type mismatch\n");
             exit(6);
         }
