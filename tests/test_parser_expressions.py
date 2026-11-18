@@ -21,7 +21,7 @@ TESTS = [
     # -------------------------------------------------------------
     (
         "Deklarácia Int s jednoduchým sčítaním",
-        """import ifj26
+        """import ifj26.*
 @main def run() : Unit =
     val x : Int = 10 + 20
 """,
@@ -30,7 +30,7 @@ TESTS = [
     ),
     (
         "Deklarácia s viacerými premennými a výrazmi",
-        """import ifj26
+        """import ifj26.*
 @main def run() : Unit =
     val a : Int = 5
     val b : Int = a * 2 + 10
@@ -41,7 +41,7 @@ TESTS = [
     ),
     (
         "Odvodenie typu výrazu (type inference bez explicitného typu)",
-        """import ifj26
+        """import ifj26.*
 @main def run() : Unit =
     val x = 100 + 200
 """,
@@ -50,7 +50,7 @@ TESTS = [
     ),
     (
         "Konkatenácia reťazcov",
-        """import ifj26
+        """import ifj26.*
 @main def run() : Unit =
     val s1 : String = "Ahoj "
     val s2 : String = s1 + "svet"
@@ -64,7 +64,7 @@ TESTS = [
     # -------------------------------------------------------------
     (
         "Nedeklarovaná premenná vo výraze",
-        """import ifj26
+        """import ifj26.*
 @main def run() : Unit =
     val x : Int = nezname_cislo + 5
 """,
@@ -73,11 +73,12 @@ TESTS = [
     ),
     (
         "Nedeklarovaná premenná v podmienke",
-        """import ifj26
+        """import ifj26.*
 @main def run() : Unit =
-    if nezname_a < 10 [
+    if nezname_a < 10 then
         val x : Int = 1
-    ]
+    else
+        ()
 """,
         3,
         "Nedeklarovaná premenná v if podmienke musí skončiť s chybou 3."
@@ -88,7 +89,7 @@ TESTS = [
     # -------------------------------------------------------------
     (
         "Typový nesúlad vo výraze (Int + String)",
-        """import ifj26
+        """import ifj26.*
 @main def run() : Unit =
     val x : Int = 10 + "neplatny_string"
 """,
@@ -97,7 +98,7 @@ TESTS = [
     ),
     (
         "Typový nesúlad pri priradení (Int deklarovaný, priradený String)",
-        """import ifj26
+        """import ifj26.*
 @main def run() : Unit =
     val x : Int = "text"
 """,
@@ -106,7 +107,7 @@ TESTS = [
     ),
     (
         "Unárne mínus na reťazec",
-        """import ifj26
+        """import ifj26.*
 @main def run() : Unit =
     val s : String = "text"
     val x : String = -s
@@ -120,7 +121,7 @@ TESTS = [
     # -------------------------------------------------------------
     (
         "Chýbajúci operand vo výraze",
-        """import ifj26
+        """import ifj26.*
 @main def run() : Unit =
     val x : Int = 10 + * 20
 """,
@@ -129,7 +130,7 @@ TESTS = [
     ),
     (
         "Neuzavretá zátvorka vo výraze",
-        """import ifj26
+        """import ifj26.*
 @main def run() : Unit =
     val x : Int = (10 + 20
 """,
@@ -138,7 +139,7 @@ TESTS = [
     ),
     (
         "Reťazenie relačných operátorov (a < b < c)",
-        """import ifj26
+        """import ifj26.*
 @main def run() : Unit =
     val x : Int = 1 < 2 < 3
 """,
@@ -151,25 +152,27 @@ TESTS = [
     # -------------------------------------------------------------
     (
         "Relačný výraz v if podmienke",
-        """import ifj26
+        """import ifj26.*
 @main def run() : Unit =
     val a : Int = 5
-    if a < 10 [
+    if a < 10 then
         val b : Int = a + 1
-    ]
+    else
+        ()
 """,
         0,
         "Výraz v if podmienke (a < 10) má vyhodnotiť na Boolean."
     ),
     (
         "Zložitý aritmeticko-relačný výraz v podmienke",
-        """import ifj26
+        """import ifj26.*
 @main def run() : Unit =
     val a : Int = 5
     val b : Double = 10.0
-    if (a * 2) <= b [
+    if (a * 2) <= b then
         val c : Int = 1
-    ]
+    else
+        ()
 """,
         0,
         "Zložený výraz s prioritou operátorov v if podmienke."
@@ -180,7 +183,7 @@ def compile_project():
     """Zostaví compiler.exe ak ešte neexistuje."""
     cmd = [
         "gcc", "-std=c11", "-Wall", "-Wextra", "-pedantic",
-        "main.c", "scanner.c", "stack.c", "symtable.c", "parser.c", "expressions.c",
+        "main.c", "scanner.c", "stack.c", "symtable.c", "parser.c", "expressions.c", "generator.c",
         "-o", COMPILER_BIN
     ]
     print(f"Kompilujem projekt: {' '.join(cmd)}")

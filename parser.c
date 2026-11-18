@@ -714,10 +714,7 @@ static AstStmt *parse_return(void){
             exit(6);
         }
         check_not_bool(expr_type);
-        if(current_func_explicit && current_func_ret_type == TYPE_UNIT){
-            /* Spec 2.3 rule 4: Unit function discards return value – no type mismatch */
-        }
-        else if(!is_compatible(current_func_ret_type, expr_type)){
+        if(current_func_ret_type != TYPE_UNIT && !is_compatible(current_func_ret_type, expr_type)){
             fprintf(stderr, "semantic error: return type mismatch\n");
             exit(6);
         }

@@ -193,10 +193,6 @@ static Token scan_token(void) {
 
             // Na konci suboru uzatvorime vsetky otvorene odsadene bloky
             if (c == EOF) {
-                if (paren_depth > 0) {
-                    token.type = TOKEN_ERROR;
-                    return token;
-                }
                 if (indent_top > 0) {
                     indent_top--;
                     pending_dedents = indent_top;
@@ -347,10 +343,6 @@ static Token scan_token(void) {
 
         // 4. Koniec suboru (EOF)
         if (c == EOF) {
-            if (paren_depth > 0) {
-                token.type = TOKEN_ERROR;
-                return token;
-            }
             // Posledny riadok bez koncoveho \n: najprv vydame EOL, EOF az potom
             if (line_has_tokens) {
                 line_has_tokens = 0;
