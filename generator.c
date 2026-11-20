@@ -4,6 +4,7 @@
  * Autor: Veronika Kentošová(xkentov00) a Filip Šimulčík(xsimulf00)
  */
 #include "generator.h"
+#include "error.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -613,19 +614,11 @@ void gen_chr(void) {
     printf("DEFVAR LF@sym\n");
     printf("DEFVAR LF@cond\n");
     printf("POPS LF@val\n");
-    printf("LT LF@cond LF@val int@0\n");
-    printf("JUMPIFEQ $$chr_invalid LF@cond bool@true\n");
-    printf("GT LF@cond LF@val int@127\n");
-    printf("JUMPIFEQ $$chr_invalid LF@cond bool@true\n");
     printf("INT2CHAR LF@sym LF@val\n"); // premeni cislo na znak
-    printf("JUMP $$chr_end\n");
 
-    printf("LABEL $$chr_end\n");
     printf("PUSHS LF@sym\n");
     printf("POPFRAME\n");
     printf("RETURN\n");
-    printf("LABEL $$chr_invalid\n");
-    printf("EXIT int@40\n");
 }
 // vytvorenie vstavanej funckie ord
 void gen_ord(void) {
@@ -654,7 +647,7 @@ void gen_ord(void) {
     printf("RETURN\n");
 }
 // vytvorenie vstavanej funckie subStr
-void gen_subStr(void) {
+void gen_substr(void) {
     printf("LABEL $$substr\n");
     printf("PUSHFRAME\n");
     printf("DEFVAR LF@val\n");
@@ -671,27 +664,27 @@ void gen_subStr(void) {
     printf("STRLEN LF@len LF@val\n");
     // kontrola 4 podmienok intervalu
     printf("LT LF@con LF@start int@0\n");
-    printf("JUMPIFEQ $$subStr_err LF@con bool@true\n");
+    printf("JUMPIFEQ $$substr_err LF@con bool@true\n");
     printf("LT LF@con LF@end int@0\n");
-    printf("JUMPIFEQ $$subStr_err LF@con bool@true\n");
+    printf("JUMPIFEQ $$substr_err LF@con bool@true\n");
     printf("LT LF@con LF@end LF@start\n");
-    printf("JUMPIFEQ $$subStr_err LF@con bool@true\n");
+    printf("JUMPIFEQ $$substr_err LF@con bool@true\n");
     printf("LT LF@con LF@len LF@end\n");
-    printf("JUMPIFEQ $$subStr_err LF@con bool@true\n");
+    printf("JUMPIFEQ $$substr_err LF@con bool@true\n");
     // ak plati interval ide sa do looopu kde sa znak po znaku vysklada vysledny retazec
-    printf("LABEL $$subStr_loop\n");
+    printf("LABEL $$substr_loop\n");
     printf("LT LF@con LF@start LF@end\n");
-    printf("JUMPIFEQ $$subStr_end LF@con bool@false\n");
+    printf("JUMPIFEQ $$substr_end LF@con bool@false\n");
     printf("GETCHAR LF@char LF@val LF@start\n");
     printf("CONCAT LF@res LF@res LF@char\n");
     printf("ADD LF@start LF@start int@1\n");
-    printf("JUMP $$subStr_loop\n");
+    printf("JUMP $$substr_loop\n");
     // ked sa loop skonci pushne sa to na zasobnik
-    printf("LABEL $$subStr_end\n");
+    printf("LABEL $$substr_end\n");
     printf("PUSHS LF@res\n");
     printf("POPFRAME\n");
     printf("RETURN\n");
-    printf("LABEL $$subStr_err\n");
+    printf("LABEL $$substr_err\n");
     printf("EXIT int@40\n");
 }
 // logicke vystavanie generatora
@@ -709,7 +702,7 @@ void generate_program(AstProgram *program) {
     gen_strLength();
     gen_chr();
     gen_ord();
-    gen_subStr();
+    gen_substr();
 
     for (AstFunc *f = program->first_func; f != NULL; f = f->next) {
 
