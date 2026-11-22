@@ -60,9 +60,9 @@ int main(void) {
         return result;
     }
 
-    // Spustenie generátora cieľového kódu nad vytvoreným AST stromom
+    // Spustenie generatora cieloveho kodu nad vytvorenym AST stromom
     generate_program(parser_get_program());
-    
-    return 0; // 0 pri úspechu
+
+    return 0; // 0 pri uspechu
 #endif
 }

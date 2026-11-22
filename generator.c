@@ -1,7 +1,7 @@
 /*
  * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
  * Subor: generator.c
- * Autor: Veronika Kentošová(xkentov00) a Filip Šimulčík(xsimulf00)
+ * Autor: Veronika Kentosova (xkentov00) a Filip Simulcik(xsimulf00)
  */
 #include "generator.h"
 #include "error.h"
@@ -10,18 +10,21 @@
 #include <string.h>
 
 static int label_counter = 0; // pocitadlo navesti/skokov
-static char defvar_buf[256][64];
+#define NAME_LEN 4200
+static char defvar_buf[1024][NAME_LEN];
 static int defvar_count = 0;
 static char current_func_exit_label[128]; // exit label pre aktuálnu funkciu
 
 // struktura a zasobnik na sledovanie premenovanym premennych (shadowing)
 typedef struct {
-    char original[64];
-    char renamed[64];
+    char original[NAME_LEN];
+    char renamed[NAME_LEN];
 } ShadowVar;
 
-static ShadowVar shadow_stack[128];
+static ShadowVar shadow_stack[1024];
 static int shadow_count = 0;
+static AstFunc *cur_func = NULL;
+static AstProgram *cur_prog = NULL;
 
 static const char *get_var_name(const char *orig_name) {
     for (int i = shadow_count - 1; i >= 0; i--) {
@@ -37,12 +40,12 @@ static void collect_shadow_for_block(AstStmt *s) {
         if (s->kind == AST_VARDEF && s->name != NULL) {
             char *underscore = strrchr(s->name, '_');
             if (underscore != NULL && *(underscore + 1) >= '0' && *(underscore + 1) <= '9') {
-                char orig[64];
-                strncpy(orig, s->name, 63);
+                char orig[NAME_LEN];
+                strncpy(orig, s->name, NAME_LEN - 1);
                 orig[underscore - s->name] = '\0';
 
-                strncpy(shadow_stack[shadow_count].original, orig, 63);
-                strncpy(shadow_stack[shadow_count].renamed, s->name, 63);
+                strncpy(shadow_stack[shadow_count].original, orig, NAME_LEN - 1);
+                strncpy(shadow_stack[shadow_count].renamed, s->name, NAME_LEN - 1);
                 shadow_count++;
             }
         }
@@ -63,7 +66,7 @@ static bool is_build_fun(const char *name) { //!!!!
            strcmp(name, "toStr") == 0 ||
            strcmp(name, "toInt") == 0 ||
            strcmp(name, "strLength") == 0 ||
-           strcmp(name, "substr") == 0 ||
+           strcmp(name, "subStr") == 0 ||
            strcmp(name, "ord") == 0 ||
            strcmp(name, "chr") == 0;
 }
@@ -82,6 +85,15 @@ static void gen_call_stmt(AstCall *call) {
     } else {
         for (int i = 0; i < call->arg_count; i++) { // prechadzanie vsetkych argumentov volania z lava do prava
             gen_expr(call->args[i]);
+            for (AstFunc *cf = cur_prog ? cur_prog->first_func : NULL; cf != NULL; cf = cf->next) {
+                if (strcmp(cf->name, call->name) == 0) {
+                    if (i < cf->param_count && cf->param_types[i] == TYPE_DOUBLE &&
+                        call->args[i]->datatype == TYPE_INT) {
+                        printf("INT2FLOATS\n");
+                    }
+                    break;
+                }
+            }
             gen_call_argument(i);
         }
         gen_call(call->name);
@@ -93,6 +105,12 @@ static void collect_defvars(AstStmt *s) {
         if (s->kind == AST_VARDEF) {
             // Zistíme, koľkokrát sa už meno v tejto funkcii vyskytlo
             int occurrences = 0;
+            if (cur_func != NULL) {
+                for (int i = 0; i < cur_func->param_count; i++) {
+                    if (strcmp(cur_func->param_names[i], s->name) == 0)
+                        occurrences++;
+                }
+            }
             for (int i = 0; i < defvar_count; i++) {
                 if (strcmp(defvar_buf[i], s->name) == 0 ||
                     (strncmp(defvar_buf[i], s->name, strlen(s->name)) == 0 && defvar_buf[i][strlen(s->name)] == '_')) {
@@ -104,7 +122,7 @@ static void collect_defvars(AstStmt *s) {
                 gen_var_declare(s->name);
             } else {
                 // inak pridame suffix
-                char final_name[64];
+                char final_name[NAME_LEN];
                 snprintf(final_name, sizeof(final_name), "%s_%d", s->name, occurrences);
 
                 // Uložíme zmenu do AST uzla pre priradenie hodnoty
@@ -113,15 +131,15 @@ static void collect_defvars(AstStmt *s) {
                     strcpy(s->name, final_name);
                 }
                 // Pridáme mapovanie pôvodné_meno -> nové_meno pre vnútorný blok
-                strncpy(shadow_stack[shadow_count].original, s->name, 63);
+                strncpy(shadow_stack[shadow_count].original, s->name, NAME_LEN - 1);
                 // ale originál je bez prípony:
-                char orig_clean[64];
-                strncpy(orig_clean, s->name, 63);
+                char orig_clean[NAME_LEN];
+                strncpy(orig_clean, s->name, NAME_LEN - 1);
                 char *underscore = strrchr(orig_clean, '_');
                 if (underscore)
                     *underscore = '\0';
-                strncpy(shadow_stack[shadow_count].original, orig_clean, 63);
-                strncpy(shadow_stack[shadow_count].renamed, final_name, 63);
+                strncpy(shadow_stack[shadow_count].original, orig_clean, NAME_LEN - 1);
+                strncpy(shadow_stack[shadow_count].renamed, final_name, NAME_LEN - 1);
                 shadow_count++;
                 gen_var_declare(final_name);
             }
@@ -153,8 +171,8 @@ void gen_init(void) {
 // odlozenie premennej do pomecneho buffera
 void gen_var_declare(const char *name) {
     // Neupisujeme hned! Len ulozime meno.
-    strncpy(defvar_buf[defvar_count], name, 63);
-    defvar_buf[defvar_count][63] = '\0';
+    strncpy(defvar_buf[defvar_count], name, NAME_LEN - 1);
+    defvar_buf[defvar_count][NAME_LEN - 1] = '\0';
     defvar_count++;
 }
 
@@ -400,6 +418,9 @@ static void gen_statement(AstStmt *s) {
             if (s->datatype == TYPE_DOUBLE && s->call->ret_type == TYPE_INT) {
                 printf("INT2FLOATS\n");
             }
+            if (s->call->ret_type == TYPE_UNIT && is_build_fun(s->call->name)) {
+                printf("PUSHS nil@nil\n"); // print vracia Unit
+            }
         }
         gen_var_assign(get_var_name(s->name));
         break;
@@ -451,8 +472,12 @@ static void gen_statement(AstStmt *s) {
         } else {
             if (s->expr != NULL) {
                 gen_expr(s->expr);
+                if (cur_func != NULL && cur_func->return_type == TYPE_DOUBLE && s->expr->datatype == TYPE_INT)
+                    printf("INT2FLOATS\n");
             } else if (s->call != NULL) {
                 gen_call_stmt(s->call);
+                if (cur_func != NULL && cur_func->return_type == TYPE_DOUBLE && s->call->ret_type == TYPE_INT)
+                    printf("INT2FLOATS\n");
             }
         }
         // Skočíme na exit label funkcie (POPFRAME+RETURN je tam)
@@ -648,7 +673,7 @@ void gen_ord(void) {
 }
 // vytvorenie vstavanej funckie subStr
 void gen_substr(void) {
-    printf("LABEL $$substr\n");
+    printf("LABEL $$subStr\n");
     printf("PUSHFRAME\n");
     printf("DEFVAR LF@val\n");
     printf("DEFVAR LF@start\n");
@@ -664,27 +689,29 @@ void gen_substr(void) {
     printf("STRLEN LF@len LF@val\n");
     // kontrola 4 podmienok intervalu
     printf("LT LF@con LF@start int@0\n");
-    printf("JUMPIFEQ $$substr_err LF@con bool@true\n");
+    printf("JUMPIFEQ $$subStr_err LF@con bool@true\n");
     printf("LT LF@con LF@end int@0\n");
-    printf("JUMPIFEQ $$substr_err LF@con bool@true\n");
+    printf("JUMPIFEQ $$subStr_err LF@con bool@true\n");
     printf("LT LF@con LF@end LF@start\n");
-    printf("JUMPIFEQ $$substr_err LF@con bool@true\n");
+    printf("JUMPIFEQ $$subStr_err LF@con bool@true\n");
     printf("LT LF@con LF@len LF@end\n");
-    printf("JUMPIFEQ $$substr_err LF@con bool@true\n");
+    printf("JUMPIFEQ $$subStr_err LF@con bool@true\n");
+    printf("LT LF@con LF@start LF@len\n");
+    printf("JUMPIFEQ $$subStr_err LF@con bool@false\n");
     // ak plati interval ide sa do looopu kde sa znak po znaku vysklada vysledny retazec
-    printf("LABEL $$substr_loop\n");
+    printf("LABEL $$subStr_loop\n");
     printf("LT LF@con LF@start LF@end\n");
-    printf("JUMPIFEQ $$substr_end LF@con bool@false\n");
+    printf("JUMPIFEQ $$subStr_end LF@con bool@false\n");
     printf("GETCHAR LF@char LF@val LF@start\n");
     printf("CONCAT LF@res LF@res LF@char\n");
     printf("ADD LF@start LF@start int@1\n");
-    printf("JUMP $$substr_loop\n");
+    printf("JUMP $$subStr_loop\n");
     // ked sa loop skonci pushne sa to na zasobnik
-    printf("LABEL $$substr_end\n");
+    printf("LABEL $$subStr_end\n");
     printf("PUSHS LF@res\n");
     printf("POPFRAME\n");
     printf("RETURN\n");
-    printf("LABEL $$substr_err\n");
+    printf("LABEL $$subStr_err\n");
     printf("EXIT int@40\n");
 }
 // logicke vystavanie generatora
@@ -704,7 +731,13 @@ void generate_program(AstProgram *program) {
     gen_ord();
     gen_substr();
 
+    cur_prog = program;
+    // hlavna funkcia sa generuje ako posledna, aby po jej skonceni program nepokracoval do dalsich funkcii
+    for (int pass = 0; pass < 2; pass++)
     for (AstFunc *f = program->first_func; f != NULL; f = f->next) {
+        if ((pass == 0) == (f->is_main != 0))
+            continue;
+        cur_func = f;
 
         if (f->is_main) {
             gen_main_start(); // LABEL $$main, CREATEFRAME, PUSHFRAME
@@ -725,6 +758,16 @@ void generate_program(AstProgram *program) {
 
         // Vygenerujeme samotne prikazy tela funkcie
         gen_block(f->body);
+        {
+            AstStmt *last = f->body;
+            while (last != NULL && last->next != NULL)
+                last = last->next;
+            if (last != NULL && last->kind == AST_EXPR && f->return_type == TYPE_DOUBLE) {
+                if ((last->expr != NULL && last->expr->datatype == TYPE_INT) ||
+                    (last->call != NULL && last->call->ret_type == TYPE_INT))
+                    printf("INT2FLOATS\n");
+            }
+        }
         printf("LABEL %s\n", current_func_exit_label);
         if (f->return_type == TYPE_UNIT && !f->is_main) {
             printf("PUSHS nil@nil\n");

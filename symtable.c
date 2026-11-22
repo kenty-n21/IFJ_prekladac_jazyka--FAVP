@@ -1,7 +1,8 @@
-/* symtable + hastable
-    tvorca : Filip Šimulčík
-    xlogin: xsimulf00
-*/
+/*
+ * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
+ * Subor: symtable.c
+ * Autor: Filip Simulcik (xsimulf00)
+ */
 
 #include <ctype.h>
 #include <stdbool.h>
@@ -292,7 +293,7 @@ void insert_included_fun(symtable *t) {
     typ6[0] = TYPE_STRING;
     typ6[1] = TYPE_INT;
     typ6[2] = TYPE_INT;
-    insert_func(t, "substr", TYPE_STRING, 3, typ6);
+    insert_func(t, "subStr", TYPE_STRING, 3, typ6);
 }
 
 // danie prec zanorenych premmennych v if alebo while atd.

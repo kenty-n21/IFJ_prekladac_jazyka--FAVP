@@ -1,7 +1,7 @@
 /*
  * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
  * Subor: symtable.h
- * Autor: Filip Šimulčík(xsimulf00)
+ * Autor: Filip Simulcik(xsimulf00)
  */
 #ifndef SYMTABLE_H
 #define SYMTABLE_H

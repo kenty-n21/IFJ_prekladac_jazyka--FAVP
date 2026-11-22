@@ -15,15 +15,19 @@ OBJS = $(SRCS:.c=.o)
 
 all: $(TARGET)
 
-# 6. Zlinkovanie všetkých .o súborov do finálneho programu
+# Zlinkovanie vsetkych .o suborov do vysledneho programu
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS)
 
-# 7. Pravidlo pre preklad jedného .c súboru na jeden .o súbor
+# Pravidlo pre preklad jedneho .c suboru na jeden .o subor
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
-	
+
 clean:
 	rm -f $(TARGET) *.o
 
-.PHONY: all clean
+# Testy (pozri tests/Makefile a tests/run_tests.py)
+test: $(TARGET)
+	$(MAKE) -C tests test
+
+.PHONY: all clean test

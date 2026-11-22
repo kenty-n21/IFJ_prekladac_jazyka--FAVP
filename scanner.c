@@ -13,7 +13,7 @@
 #include <string.h>
 #include "scanner.h"
 
-// Zasobnik pre sledovanie urovni odsadenia blokov [sekcia 1.2]
+// Zasobnik pre sledovanie urovni odsadenia blokov
 #define MAX_INDENT_LEVELS 256
 static int indent_stack[MAX_INDENT_LEVELS] = {0};
 static int indent_top = 0;
@@ -23,6 +23,7 @@ static int pending_dedents = 0;
 static int at_line_start = 1;       // Sme na zaciatku fyzickeho riadku (pocitame medzery)
 static int paren_depth = 0;         // Hlbka vnorenia okruhlych zatvoriek ()
 static int seen_newline = 0;        // Bol od posledneho tokenu fyzicky koniec riadku \n
+static int space_seen = 0;          // Bol pred poslednym tokenom biely znak
 static int line_has_tokens = 0;     // Boli uz na aktualnom logickom riadku vydane tokeny
 
 // Priznak, ze atribut aktualneho tokenu je dlhsi ako MAX_TOKEN_LEN
@@ -43,9 +44,7 @@ static int attr_overflow = 0;
 static int pushback[PUSHBACK_SIZE];
 static int pushback_count = 0;
 
-/**
- * @brief Nacita dalsi znak - najprv zo zasobnika vratenych znakov, inak zo stdin.
- */
+// Nacita dalsi znak: najprv zo zasobnika vratenych znakov, ak je prazdny, tak zo stdin
 static int next_char(void) {
     if (pushback_count > 0) {
         return pushback[--pushback_count];
@@ -53,18 +52,14 @@ static int next_char(void) {
     return getchar();
 }
 
-/**
- * @brief Vrati znak spat na vstup (EOF sa ignoruje, dalsi next_char ho vrati znova).
- */
+// Vrati znak spat na vstup, dalsie volanie next_char ho precita znova (EOF sa nevracia)
 static void unget_char(int c) {
     if (c != EOF && pushback_count < PUSHBACK_SIZE) {
         pushback[pushback_count++] = c;
     }
 }
 
-/**
- * @brief Resetuje stav lexikalneho analyzatora do pociatocneho stavu.
- */
+// Nastavi scanner do pociatocneho stavu (volat pred citanim prveho tokenu)
 void scanner_init(void) {
     indent_stack[0] = 0;
     indent_top = 0;
@@ -77,16 +72,13 @@ void scanner_init(void) {
     attr_overflow = 0;
 }
 
-/**
- * @brief Rozlisi rezervovane klucove slova a specialny znak '_' od identifikatorov.
- * @param word Nacitany retazec.
- * @return Zodpovedajuci TokenType.
- */
+// Zisti, ci je nacitane slovo klucove slovo, samotne '_' alebo obycajny identifikator
+// a vrati prislusny typ tokenu
 static TokenType check_keyword(const char *word) {
-    // Samotne podtrzitko nie je platny identifikator [sekcia 1.1]
+    // Samotne podtrzitko nie je platny identifikator
     if (strcmp(word, "_") == 0) return TOKEN_UNDERSCORE;
 
-    // Zakladne klucove slova [sekcia 1.1]
+    // Zakladne klucove slova
     if (strcmp(word, "def") == 0) return TOKEN_KW_DEF;
     if (strcmp(word, "do") == 0) return TOKEN_KW_DO;
     if (strcmp(word, "else") == 0) return TOKEN_KW_ELSE;
@@ -102,7 +94,7 @@ static TokenType check_keyword(const char *word) {
     if (strcmp(word, "String") == 0) return TOKEN_KW_STRING_TYPE;
     if (strcmp(word, "Unit") == 0) return TOKEN_KW_UNIT;
 
-    // Klucove slova pre rozsirenia [sekcia 1.1 a 5]
+    // Klucove slova pre rozsirenia
     if (strcmp(word, "Boolean") == 0) return TOKEN_KW_BOOLEAN;
     if (strcmp(word, "true") == 0) return TOKEN_KW_TRUE;
     if (strcmp(word, "false") == 0) return TOKEN_KW_FALSE;
@@ -117,17 +109,15 @@ static TokenType check_keyword(const char *word) {
     return TOKEN_IDENTIFIER;
 }
 
-/**
- * @brief Pomocna funkcia na nacitanie sekvencie cislic s povolenymi podtrzitkami.
- * [Podtrzitko smie byt vyhradne medzi dvoma cislicami - sekcia 1.1]
- * @return 1 ak je sekvencia platna, 0 pri lexikalnej chybe.
- */
+// Nacita dalsie cislice cisla, podtrzitka medzi cislicami preskoci (do atributu sa neukladaju)
+// Podtrzitko smie byt len medzi dvoma cislicami
+// Vracia 1 ak je zapis v poriadku, 0 pri lexikalnej chybe
 static int read_digits_with_underscores(Token *token, int *attr_len) {
     int c = next_char();
     while (isdigit(c) || c == '_') {
         if (c == '_') {
             int next_c = next_char();
-            // Za podtrzitkom musi okamzite nasledovat cislica [sekcia 1.1]
+            // Za podtrzitkom musi okamzite nasledovat cislica
             if (!isdigit(next_c)) {
                 return 0;
             }
@@ -143,15 +133,15 @@ static int read_digits_with_underscores(Token *token, int *attr_len) {
     return 1;
 }
 
-/**
- * @brief Vlastny lexikalny analyzator - nacita a vrati dalsi token (bez kontroly pretecenia).
- */
+// Hlavna cast scannera: precita zo vstupu jednu lexemu a vrati jej token
+// (kontrolu prilis dlheho atributu robi az get_next_token)
 static Token scan_token(void) {
     Token token;
     token.attribute[0] = '\0';
     token.indent = indent_stack[indent_top];
     token.had_newline_before = seen_newline;
     int attr_len = 0;
+    space_seen = 0;
 
     // Ak mame nevybavene vynorenia z viacerych blokov naraz, vydavame TOKEN_DEDENT
     if (pending_dedents > 0) {
@@ -166,7 +156,7 @@ static Token scan_token(void) {
     int has_leading_tab = 0;
 
     while (1) {
-        // 1. Spracovanie zaciatku fyzickeho riadku a meranie odsadenia [sekcia 1.2]
+        // 1. Spracovanie zaciatku fyzickeho riadku a meranie odsadenia
         if (at_line_start) {
             current_spaces = 0;
             has_leading_tab = 0;
@@ -176,7 +166,7 @@ static Token scan_token(void) {
                 if (c == ' ') {
                     current_spaces++;
                 } else if (c == '\t') {
-                    // Tabulator na zaciatku neprazdneho riadku je chyba 1 [sekcia 1.2]
+                    // Tabulator na zaciatku neprazdneho riadku je chyba 1
                     has_leading_tab = 1;
                 } else if (c == '\r') {
                     continue;
@@ -185,7 +175,7 @@ static Token scan_token(void) {
                 }
             }
 
-            // Prazdny fyzicky riadok sa ignoruje a nemeni odsadenie [sekcia 1.2]
+            // Prazdny fyzicky riadok sa ignoruje a nemeni odsadenie
             if (c == '\n') {
                 seen_newline = 1;
                 continue;
@@ -209,7 +199,7 @@ static Token scan_token(void) {
             if (c == '/') {
                 int next_c = next_char();
                 if (next_c == '/') {
-                    // Riadok tvoreny len bielymi znakmi a riadkovym komentarom sa ignoruje [sekcia 1.2]
+                    // Riadok tvoreny len bielymi znakmi a riadkovym komentarom sa ignoruje
                     while ((c = next_char()) != '\n' && c != EOF);
                     seen_newline = 1;
                     continue;
@@ -232,7 +222,7 @@ static Token scan_token(void) {
                         }
                     }
                     if (has_nl) {
-                        // Viacriadkovy blokovy komentar: za nim nesmu byt na riadku dalsie tokeny [sekcia 1.1]
+                        // Viacriadkovy blokovy komentar: za nim nesmu byt na riadku dalsie tokeny
                         while ((c = next_char()) == ' ' || c == '\t' || c == '\r');
                         if (c == '/') {
                             int temp = next_char();
@@ -271,7 +261,7 @@ static Token scan_token(void) {
                 }
             }
 
-            // Riadok je neprazdny -> ak obsahoval tabulator v odsadeni, je to chyba 1 [sekcia 1.2]
+            // Riadok je neprazdny -> ak obsahoval tabulator v odsadeni, je to chyba 1
             if (has_leading_tab) {
                 token.type = TOKEN_ERROR;
                 return token;
@@ -280,7 +270,7 @@ static Token scan_token(void) {
             at_line_start = 0;
 
             if (paren_depth > 0) {
-                // Vo vnutri zatvoriek musi byt novy fyzicky riadok odsadeny viac ako zaciatok logickeho riadku [sekcia 1.2],
+                // Vo vnutri zatvoriek musi byt novy fyzicky riadok odsadeny viac ako zaciatok logickeho riadku,
                 // vynimkou je riadok zacinajuci uzatvaracou zatvorkou ')', ktory sa smie vratit na uroven bloku.
                 if ((c == ')' && current_spaces < indent_stack[indent_top]) ||
                     (c != ')' && current_spaces <= indent_stack[indent_top])) {
@@ -326,13 +316,13 @@ static Token scan_token(void) {
         }
 
         // 2. Bezne biele znaky uprostred riadku
-        if (c == ' ' || c == '\t' || c == '\r') continue;
+        if (c == ' ' || c == '\t' || c == '\r') { space_seen = 1; continue; }
 
         // 3. Koniec fyzickeho riadku
         if (c == '\n') {
             at_line_start = 1;
             seen_newline = 1;
-            // Vo vnutri zatvoriek sa \n chova len ako biely znak [sekcia 1.2]
+            // Vo vnutri zatvoriek sa \n chova len ako biely znak
             if (paren_depth > 0 || !line_has_tokens) {
                 continue;
             }
@@ -361,16 +351,16 @@ static Token scan_token(void) {
             return token;
         }
 
-        // 5. Komentare a operator delenia '/' [sekcia 1.1]
+        // 5. Komentare a operator delenia '/'
         if (c == '/') {
             int next_c = next_char();
             if (next_c == '/') {
-                // Riadkovy komentar plati do konca riadku [sekcia 1.1]
+                // Riadkovy komentar plati do konca riadku
                 while ((c = next_char()) != '\n' && c != EOF);
                 if (c != EOF) unget_char(c);
                 continue;
             } else if (next_c == '*') {
-                // Blokovy komentar s podporou vnorenia [sekcia 1.1]
+                // Blokovy komentar s podporou vnorenia
                 int depth = 1;
                 int has_nl = 0;
                 while (depth > 0) {
@@ -388,7 +378,7 @@ static Token scan_token(void) {
                     }
                 }
                 if (has_nl) {
-                    // Za viacriadkovym blokovym komentarom nesmu byt na tom istom riadku dalsie tokeny [sekcia 1.1]
+                    // Za viacriadkovym blokovym komentarom nesmu byt na tom istom riadku dalsie tokeny
                     while ((c = next_char()) == ' ' || c == '\t' || c == '\r');
                     if (c == '/') {
                         int temp = next_char();
@@ -420,7 +410,7 @@ static Token scan_token(void) {
         seen_newline = 0;
         line_has_tokens = 1;
 
-        // Priznak pre interpolovany retazec s"..." [rozsirenie INTERPOLATEDS]
+        // Priznak pre interpolovany retazec s"..." (rozsirenie INTERPOLATEDS)
         int is_interpolated = 0;
         if (c == 's') {
             int next_q = next_char();
@@ -432,7 +422,7 @@ static Token scan_token(void) {
             }
         }
 
-        // 6. Identifikatory, klucove slova a '_' [sekcia 1.1]
+        // 6. Identifikatory, klucove slova a '_'
         if (isalpha(c) || c == '_') {
             while (isalnum(c) || c == '_') {
                 ADD_CHAR(token, attr_len, c);
@@ -444,17 +434,17 @@ static Token scan_token(void) {
             return token;
         }
 
-        // 7. Anotacia @ pre @main [sekcia 2]
+        // 7. Anotacia @ pre @main
         if (c == '@') {
             token.type = TOKEN_AT;
             return token;
         }
 
-        // 8. Bodka '.' alebo desatinny literal zacinajuci bodkou (napr. .5) [sekcia 1.1 a 2]
+        // 8. Bodka '.' alebo desatinny literal zacinajuci bodkou (napr. .5)
         if (c == '.') {
             int next_c = next_char();
             if (isdigit(next_c)) {
-                // Desatinne cislo bez celej casti (napr. .25 -> ulozime ako 0.25) [sekcia 1.1]
+                // Desatinne cislo bez celej casti (napr. .25 -> ulozime ako 0.25)
                 ADD_CHAR(token, attr_len, '0');
                 ADD_CHAR(token, attr_len, '.');
                 ADD_CHAR(token, attr_len, next_c);
@@ -478,7 +468,7 @@ static Token scan_token(void) {
                     }
                     c = next_char();
                 }
-                // Nepovinna pripona d alebo D [sekcia 1.1]
+                // Nepovinna pripona d alebo D
                 if (c == 'd' || c == 'D') {
                     c = next_char();
                 }
@@ -499,7 +489,7 @@ static Token scan_token(void) {
             }
         }
 
-        // 9. Ciselne literaly (Int a Double) [sekcia 1.1]
+        // 9. Ciselne literaly (Int a Double)
         if (isdigit(c)) {
             int is_double = 0;
             int starts_with_zero = (c == '0');
@@ -538,7 +528,7 @@ static Token scan_token(void) {
                 }
             }
 
-            // Exponent (e alebo E) [sekcia 1.1]
+            // Exponent (e alebo E)
             if (c == 'e' || c == 'E') {
                 is_double = 1;
                 ADD_CHAR(token, attr_len, c);
@@ -556,12 +546,12 @@ static Token scan_token(void) {
                 c = next_char();
             }
 
-            // Nepovinna pripona d alebo D pre Double [sekcia 1.1]
+            // Nepovinna pripona d alebo D pre Double
             if (is_double && (c == 'd' || c == 'D')) {
                 c = next_char();
             }
 
-            // Nenulovy celociselny literal nesmie zacinat nulou (napr. 012 alebo 00) [sekcia 1.1]
+            // Nenulovy celociselny literal nesmie zacinat nulou (napr. 012 alebo 00)
             if (!is_double && starts_with_zero && attr_len > 1) {
                 token.type = TOKEN_ERROR;
                 return token;
@@ -579,14 +569,14 @@ static Token scan_token(void) {
             return token;
         }
 
-        // 10. Retazcove literaly (String) - obycajne "...", viacriadkove """...""" a interpolovane s"..." [sekcia 1.1]
+        // 10. Retazcove literaly (String) - obycajne "...", viacriadkove """...""" a interpolovane s"..."
         if (c == '"') {
             TokenType str_type = is_interpolated ? TOKEN_INTERP_STRING : TOKEN_STRING;
             int next1 = next_char();
             if (next1 == '"') {
                 int next2 = next_char();
                 if (next2 == '"') {
-                    // Viacriadkovy retazec """...""" (escape sekvencie sa nevyhodnocuju) [sekcia 1.1]
+                    // Viacriadkovy retazec """...""" (escape sekvencie sa nevyhodnocuju)
                     int quotes = 0;
                     while (1) {
                         c = next_char();
@@ -614,7 +604,7 @@ static Token scan_token(void) {
                     return token;
                 }
             } else {
-                // Neprazdny jednoriadkovy retazec "..." [sekcia 1.1]
+                // Neprazdny jednoriadkovy retazec "..."
                 c = next1;
                 while (c != '"') {
                     if (c == '\n' || c == '\r' || c == EOF) {
@@ -623,7 +613,7 @@ static Token scan_token(void) {
                     }
                     if (c == '\\') {
                         c = next_char();
-                        // Povolene su vyhradne escape sekvencie \\, \", \n, \r, \t [sekcia 1.1]
+                        // Povolene su vyhradne escape sekvencie \\, \", \n, \r, \t
                         if (c == 'n') ADD_CHAR(token, attr_len, '\n');
                         else if (c == 't') ADD_CHAR(token, attr_len, '\t');
                         else if (c == 'r') ADD_CHAR(token, attr_len, '\r');
@@ -641,7 +631,7 @@ static Token scan_token(void) {
             }
         }
 
-        // 11. Viacznakove a jednoznakove operatory [sekcia 3 a 5]
+        // 11. Viacznakove a jednoznakove operatory
         if (c == '=') {
             int next_c = next_char();
             if (next_c == '=') { token.type = TOKEN_EQ; return token; }
@@ -713,16 +703,14 @@ static Token scan_token(void) {
             case ';': token.type = TOKEN_SEMICOLON; return token;
         }
 
-        // Akykolvek iny neznamy znak vedie na lexikalnu chybu 1 [sekcia 1.1]
+        // Akykolvek iny neznamy znak vedie na lexikalnu chybu 1
         token.type = TOKEN_ERROR;
         return token;
     }
 }
 
-/**
- * @brief Nacita a vrati dalsi token zo standardneho vstupu.
- * Ak sa atribut tokenu nezmestil do MAX_TOKEN_LEN, vrati TOKEN_ERROR.
- */
+// Funkcia, ktoru vola parser: vrati dalsi token zo vstupu
+// Ak bol atribut tokenu dlhsi ako MAX_TOKEN_LEN, vrati TOKEN_ERROR
 Token get_next_token(void) {
     attr_overflow = 0;
     Token token = scan_token();
@@ -730,4 +718,10 @@ Token get_next_token(void) {
         token.type = TOKEN_ERROR;
     }
     return token;
+}
+
+// Vrati 1, ak bol pred naposledy vratenym tokenom biely znak, inak 0
+// (parser to pouziva na kontrolu, ze medzi '@' a 'main' nie je medzera)
+int scanner_space_before_token(void) {
+    return space_seen;
 }

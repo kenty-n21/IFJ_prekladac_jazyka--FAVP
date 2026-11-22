@@ -4,9 +4,7 @@
  * Autor: Andrej Beles (xbelesa00)
  *
  * AI Prompt: "VYGENERUJ MI: Predpripraveny hlavickovy subor scanner.h pre jazyk
- * IFJ26 vratane vsetkych klucovych slov, operatorov a podpory pre odsadenie."
- * AI Prompt (uprava): "Odstran 'to', 'until', 'by' z klucovych slov, lebo nie su
- * v zozname klucovych slov v specifikacii IFJ26. + Oprav chyby"
+ * IFJ26 vratane vsetkych klucovych slov, operatorov a podpory pre odsadenie. + Oprav chyby"
  */
 
 #ifndef SCANNER_H
@@ -113,5 +111,8 @@ void scanner_init(void);
  * @return Struktura Token obsahujuca typ, atribut a informacie o odsadeni.
  */
 Token get_next_token(void);
+
+/** @return 1 ak bol pred naposledy nacitanym tokenom biely znak. */
+int scanner_space_before_token(void);
 
 #endif // SCANNER_H

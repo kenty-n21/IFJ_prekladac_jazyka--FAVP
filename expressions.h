@@ -1,7 +1,7 @@
 /*
  * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
  * Subor: expressions.h
- * Autor: Veronika Kentošová(xkentov00)
+ * Autor: Veronika Kentosova (xkentov00)
  */
 #ifndef EXPRESSIONS_H
 #define EXPRESSIONS_H

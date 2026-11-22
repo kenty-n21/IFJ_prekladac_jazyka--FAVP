@@ -1,7 +1,7 @@
 /*
  * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
  * Subor: parser.c
- * Autor: Paulína Košťálová (xkostap00)
+ * Autor: Paulina Kostalova (xkostap00)
  */
 #define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
@@ -30,7 +30,28 @@ typedef struct
 {
     char  *name;
     int state;
+    int inferred;   // navratovy typ nebol uvedeny
 }FuncEntry;
+
+static int parsing_idx = -1;
+static int call_edges[4096][2];
+static int call_edge_count = 0;
+
+static void add_call_edge(int from, int to){
+    if(from < 0 || to < 0){
+        return;
+    }
+    for(int i = 0; i < call_edge_count; i++){
+        if(call_edges[i][0] == from && call_edges[i][1] == to){
+            return;
+        }
+    }
+    if(call_edge_count < 4096){
+        call_edges[call_edge_count][0] = from;
+        call_edges[call_edge_count][1] = to;
+        call_edge_count++;
+    }
+}
 
 
 typedef struct
@@ -209,6 +230,7 @@ static void register_function(const char *name){
     }
     funcs[func_count].name = copy_string(name);
     funcs[func_count].state = 0;
+    funcs[func_count].inferred = 0;
     func_count++;
 }
 
@@ -277,6 +299,10 @@ static Datatype parse_type(void){
     else if(current_token.type == TOKEN_KW_UNIT){
         type = TYPE_UNIT;
     }
+    else if(current_token.type == TOKEN_IDENTIFIER){
+        fprintf(stderr, "semantic error: unknown type '%s'\n", current_token.attribute);
+        exit(3);   // pouzitie nedefinovaneho typu
+    }
     else{
         syntax_error();
     }
@@ -294,6 +320,7 @@ static void end_statement(void){
 
 static ExprNode *parse_term(Datatype *type){
     ExprNode *node = NULL;
+    bool is_ident = false;
     char value[MAX_TOKEN_LEN + 2];
     value[0] = '\0';
     
@@ -339,10 +366,15 @@ static ExprNode *parse_term(Datatype *type){
         Symboldata *var = find_var(current_symtable, current_scope_level, current_token.attribute);
         if(var == NULL){
             fprintf(stderr, "sematic error: variable '%s' was not declared\n", current_token.attribute);
+            fetch_token();
+            if(current_token.type == TOKEN_LPAREN){
+                syntax_error();
+            }
             exit(3);
         }
         node = create_leaf(NODE_VAR, var->typ, value);
         *type = var->typ;
+        is_ident = true;
         break;}
 
     default:
@@ -354,6 +386,9 @@ static ExprNode *parse_term(Datatype *type){
         exit(99);
     }
     fetch_token();
+    if(is_ident && current_token.type == TOKEN_LPAREN){
+        syntax_error();   // volanie funkcie nesmie byt argumentom
+    }
     return node;
 }
 
@@ -380,6 +415,8 @@ static AstCall *parse_function_call(char *name){
         longjmp(parse_jmp, 1);
     }
 
+    add_call_edge(parsing_idx, find_func_index(func_name));
+
     AstCall *call = calloc(1, sizeof(AstCall));
     if(call == NULL){
         exit(99);
@@ -397,6 +434,9 @@ static AstCall *parse_function_call(char *name){
     int arg_count = 0;
 
     while (current_token.type != TOKEN_RPAREN && current_token.type != TOKEN_EOF){
+        if(current_token.type == TOKEN_COMMA){
+            syntax_error();
+        }
         if(arg_count >= func_data->param_count){
             fprintf(stderr, "semantic error: too many arguments in call of function '%s'\n", func_name);
             exit(5);
@@ -466,6 +506,12 @@ static void parse_value(ExprNode **expr, AstCall **call, Datatype *type){
     int expr_err = parse_expression(&current_token, expr, &expr_type, current_symtable, current_scope_level);
 
     if(expr_err == 0){
+        if(current_token.type == TOKEN_ERROR){
+            exit(1);
+        }
+        if(current_token.type == TOKEN_LBRACKET || current_token.type == TOKEN_RBRACKET){
+            syntax_error();
+        }
         check_expr_vars(*expr);
         *type = expr_type;
     }
@@ -873,6 +919,9 @@ static void parse_function_header(char **func_name, Datatype *return_type, bool 
 
     if(current_token.type == TOKEN_AT){
         fetch_token();
+        if(scanner_space_before_token()){
+            syntax_error();   // medzi @ a main nesmie byt ziadny znak
+        }
 
         if(current_token.type == TOKEN_IDENTIFIER && strcmp(current_token.attribute, "main") == 0){
             fetch_token();
@@ -1100,6 +1149,9 @@ static void parse_function(void){
 
     current_func_ret_type = return_type;
     current_func_explicit = has_ret_type;
+    if(parsing_idx >= 0){
+        funcs[parsing_idx].inferred = !has_ret_type;
+    }
 
     AstFunc *func = calloc(1, sizeof(AstFunc));
     if(func == NULL){
@@ -1212,6 +1264,7 @@ static void process_function(int idx){
     while(1){
         if(setjmp(parse_jmp) == 0){
             seek_function(idx);
+            parsing_idx = idx;
             parse_function();
             break;
         }
@@ -1222,6 +1275,7 @@ static void process_function(int idx){
         process_function(blocked_on);
     }
     funcs[idx].state = 2;
+    parsing_idx = -1;
 }
 
 
@@ -1253,6 +1307,34 @@ int parser_program(void){
 
     for(int i = 0; i < func_count; i++){
         process_function(i);
+    }
+
+    // funkcia bez explicitneho navratoveho typu nesmie byt sucastou rekurzie (ani nepriamej)
+    for(int i = 0; i < func_count; i++){
+        if(!funcs[i].inferred){
+            continue;
+        }
+        bool seen[4096] = {false};
+        int stack_[4096];
+        int sp = 0;
+        stack_[sp++] = i;
+        while(sp > 0){
+            int cur = stack_[--sp];
+            for(int e = 0; e < call_edge_count; e++){
+                if(call_edges[e][0] != cur){
+                    continue;
+                }
+                int to = call_edges[e][1];
+                if(to == i){
+                    fprintf(stderr, "semantic error: recursive function '%s' needs explicit return type\n", funcs[i].name);
+                    exit(6);
+                }
+                if(to < 4096 && !seen[to] && sp < 4096){
+                    seen[to] = true;
+                    stack_[sp++] = to;
+                }
+            }
+        }
     }
     
     return 0;

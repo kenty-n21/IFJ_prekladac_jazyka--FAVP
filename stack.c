@@ -1,10 +1,10 @@
 /*
  * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
  * Subor: stack.c
- * Autor: Veronika Kentošová(xkentov00)
+ * Autor: Veronika Kentosova(xkentov00)
  */
 #include <stdio.h>      // pre mozne chybove hlasnia
-#include <stdbool.h>    //True a False
+#include <stdbool.h>    // True a False
 #include "stack.h"
 #include "symtable.h"
 

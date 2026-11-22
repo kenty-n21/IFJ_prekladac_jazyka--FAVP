@@ -1,7 +1,7 @@
 /*
  * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
  * Subor: expressions.c
- * Autor: Veronika Kentošová(xkentov00)
+ * Autor:  Veronika Kentosova (xkentov00)
  */
 #include <string.h>
 #include "stack.h"
