@@ -25,7 +25,8 @@ typedef enum{
     NODE_LITERAL,       // literal
     NODE_VAR,           // identifikator premennej
     NODE_UNARY,         // unarny operator
-    NODE_BINARY         // binarny operator
+    NODE_BINARY,        // binarny operator
+    NODE_INTERP         // pre rozšírenie INTERPOLATED
 }NodeType;
 
 typedef struct ExprNode{
