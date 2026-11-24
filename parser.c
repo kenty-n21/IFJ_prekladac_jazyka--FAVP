@@ -167,12 +167,6 @@ static bool is_compatible(Datatype target, Datatype src){
     return target == TYPE_ANY || target == src || (target == TYPE_DOUBLE && src == TYPE_INT);
 }
 
-static void check_not_bool(Datatype type){
-    if(type == TYPE_BOOL){
-        fprintf(stderr, "semantic eror: boolean value can not be stored, passed or returned\n");
-        exit(6);
-    }
-}
 
 static Symboldata *lookup_func(symtable *t, char *func_name){
     return lookup_var(0, func_name, t);
@@ -303,6 +297,9 @@ static Datatype parse_type(void){
         fprintf(stderr, "semantic error: unknown type '%s'\n", current_token.attribute);
         exit(3);   // pouzitie nedefinovaneho typu
     }
+    else if(current_token.type == TOKEN_KW_BOOLEAN){
+        type = TYPE_BOOL;
+    }
     else{
         syntax_error();
     }
@@ -376,6 +373,16 @@ static ExprNode *parse_term(Datatype *type){
         *type = var->typ;
         is_ident = true;
         break;}
+
+    case TOKEN_KW_TRUE:
+    case TOKEN_KW_FALSE:
+        if(value[0] == '-'){
+            syntax_error();
+        }
+        node = create_leaf(NODE_LITERAL, TYPE_BOOL, value);
+        *type = TYPE_BOOL;
+        break;
+    
 
     default:
         syntax_error();
@@ -563,7 +570,7 @@ static AstStmt *parser_assignment(char *name){
         exit(7);
     }
 
-    check_not_bool(expr_type);
+    
 
     if(!is_compatible(var_data->typ, expr_type)){
         fprintf(stderr, "semantic error: type mismatch in assignemnt to variable '%s' (variable: %d, expression %d)\n", var_name, var_data->typ, expr_type);
@@ -594,7 +601,6 @@ static AstStmt *parse_identifier_statement(void){
         stmt = parser_assignment(id_name);
     }
     else{
-        check_not_bool(expr_type);
         stmt->datatype = expr_type;
         end_statement();
     }
@@ -642,7 +648,6 @@ static AstStmt *parse_var_declaration(void){
 
     end_statement();
     
-    check_not_bool(expr_type);
 
     if(has_type && !is_compatible(var_type, expr_type)){
         fprintf(stderr, "semantic error: type mismatch in var declaration (var.: %d, expr.: %d)\n", var_type, expr_type);
@@ -713,10 +718,16 @@ static AstStmt *parse_if(void){
             syntax_error();
         }
         fetch_token();
-        stmt->else_block = parse_block();
-    }
-    else {
-        syntax_error();
+
+        if(current_token.type == TOKEN_KW_IF){
+            if(current_token.had_newline_before){
+                syntax_error();
+            }
+            stmt->else_block = parse_if();
+        }
+        else{
+            stmt->else_block = parse_block();
+        }
     }
     return stmt;
 }
@@ -771,7 +782,6 @@ static AstStmt *parse_return(void){
             fprintf(stderr, "semantic error: function with return need explicit retrun type\n");
             exit(6);
         }
-        check_not_bool(expr_type);
         if(current_func_ret_type != TYPE_UNIT && !is_compatible(current_func_ret_type, expr_type)){
             fprintf(stderr, "semantic error: return type mismatch\n");
             exit(6);
@@ -788,7 +798,6 @@ static AstStmt *parse_expression_statement(void){
     Datatype expr_type = TYPE_ANY;
 
     parse_value(&stmt->expr, &stmt->call, &expr_type);
-    check_not_bool(expr_type);
     stmt->datatype = expr_type;
 
     end_statement();
@@ -827,6 +836,12 @@ static AstStmt *parser_statements(void){
         case TOKEN_LPAREN:
 
         case TOKEN_MINUS:
+
+        case TOKEN_KW_TRUE:
+
+        case TOKEN_KW_FALSE:
+
+        case TOKEN_NOT:
             stmt = parse_expression_statement();
             break;
 
@@ -845,7 +860,6 @@ static AstStmt *parser_statements(void){
         case TOKEN_EOL:
             fetch_token();
             break;
-            
 
         default:
             syntax_error();
@@ -1205,7 +1219,6 @@ static void parse_function(void){
     else{
         body = new_stmt(AST_EXPR);
         parse_value(&body->expr, &body->call, &body->datatype);
-        check_not_bool(body->datatype);
         expect(TOKEN_EOL);
 
         leave_scope();
@@ -1227,7 +1240,6 @@ static void parse_function(void){
             fprintf(stderr, "semnatic error: can not ifer return type of function '%s'\n", func_name);
             exit(6);
         }
-        check_not_bool(body_type);
         return_type = body_type;
     }
 
@@ -1292,6 +1304,7 @@ int parser_program(void){
     }
     
     insert_included_fun(current_symtable);
+    insert_func(current_symtable, "readBoolean", TYPE_BOOL, 0, NULL);
 
     prepare_input();
     fetch_token();  
