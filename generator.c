@@ -5,10 +5,10 @@
  */
 #include "generator.h"
 #include "error.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 
 static int label_counter = 0; // pocitadlo navesti/skokov
 #define NAME_LEN 4200
@@ -56,7 +56,7 @@ static void collect_shadow_for_block(AstStmt *s) {
 static void gen_statement(AstStmt *s);
 
 // funckia na pozeranie ci je volana funkcia vstavana
-static bool is_build_fun(const char *name) { //!!!!
+static bool is_build_fun(const char *name) { //!!!
     if (name == NULL) {
         return false;
     }
@@ -231,9 +231,9 @@ void gen_print_escaped_string(const char *str) {
     }
 }
 
-void gen_interpolated_string(const char *str){
-    //osetrenie prazdneho retazca
-    if(str == NULL)
+void gen_interpolated_string(const char *str) {
+    // osetrenie prazdneho retazca
+    if (str == NULL)
         return;
 
     printf("MOVE GF@$tmp1 string@\n");
@@ -242,37 +242,37 @@ void gen_interpolated_string(const char *str){
     while (*p != '\0') {
         if (*p == '$') {
             p++; // preskocime '$'
-            if( *p == '$'){
+            if (*p == '$') {
                 printf("CONCAT GF@$tmp1 GF@$tmp1 string@\\036\n"); // \036 je ASCII znak '$'
                 p++;
-            }else if(*p == '{'){
-                p++; //preskocime zatvorku
+            } else if (*p == '{') {
+                p++; // preskocime zatvorku
                 char expr_buff[256];
                 int len = 0;
-                while( *p != '}' && *p != '\0'){
-                    if (len < (int)sizeof(expr_buff) - 1){
+                while (*p != '}' && *p != '\0') {
+                    if (len < (int)sizeof(expr_buff) - 1) {
                         expr_buff[len++] = *p;
                         p++;
                     }
                 }
                 expr_buff[len] = '\0';
-                if (*p == '}'){
-                    p++;    //preskocime
-                }else{
+                if (*p == '}') {
+                    p++; // preskocime
+                } else {
                     exit(ERROR_SYNT);
                 }
-                //orezanie medzier
+                // orezanie medzier
                 char *start = expr_buff;
-                while ( *start == ' ' || *start == '\t'){
+                while (*start == ' ' || *start == '\t') {
                     start++;
                 }
                 char *end = start + strlen(start) - 1;
-                while(end > start && (*end == ' ' || *end == '\t')){
+                while (end > start && (*end == ' ' || *end == '\t')) {
                     *end = '\0';
                     end--;
                 }
 
-                 // Hladame operator (+, -, *, /) pre specialne pripady
+                // Hladame operator (+, -, *, /) pre specialne pripady
                 char op = '\0';
                 char *op_pos = NULL;
                 for (char *c = start; *c != '\0'; c++) {
@@ -283,8 +283,8 @@ void gen_interpolated_string(const char *str){
                     }
                 }
 
-                if(op_pos != NULL){
-                     // Je to vyraz s operatorom, napr. "n + 1"
+                if (op_pos != NULL) {
+                    // Je to vyraz s operatorom, napr. "n + 1"
                     char left_op[128], right_op[128];
                     int left_len = op_pos - start;
                     strncpy(left_op, start, left_len);
@@ -292,67 +292,70 @@ void gen_interpolated_string(const char *str){
                     strcpy(right_op, op_pos + 1);
 
                     // Orezanie
-                    char *l = left_op; 
+                    char *l = left_op;
                     while (*l == ' ') {
                         l++;
                     }
 
-                    char *le = l + strlen(l) - 1; 
-                    while (le > l && *le == ' '){ 
-                        *le = '\0'; 
-                        le--; 
+                    char *le = l + strlen(l) - 1;
+                    while (le > l && *le == ' ') {
+                        *le = '\0';
+                        le--;
                     }
-                    char *r = right_op; 
-                    while (*r == ' '){
+                    char *r = right_op;
+                    while (*r == ' ') {
                         r++;
                     }
-                    char *re = r + strlen(r) - 1; 
-                    while (re > r && *re == ' '){ 
-                        *re = '\0'; 
-                        re--; 
+                    char *re = r + strlen(r) - 1;
+                    while (re > r && *re == ' ') {
+                        *re = '\0';
+                        re--;
                     }
                     // Lavy operand na zasobnik
-                    if (isdigit((unsigned char)*l)){
+                    if (isdigit((unsigned char)*l)) {
                         printf("PUSHS int@%s\n", l);
-                    }else{
+                    } else {
                         printf("PUSHS LF@%s\n", get_var_name(l));
                     }
                     // Pravy operand na zasobnik
-                    if (isdigit((unsigned char)*r)){
-                        printf("PUSHS int@%s\n", r); 
-                    }else{
+                    if (isdigit((unsigned char)*r)) {
+                        printf("PUSHS int@%s\n", r);
+                    } else {
                         printf("PUSHS LF@%s\n", get_var_name(r));
-                    } 
+                    }
                     // Instrukcia podla operatora
-                    if(op == '+'){
+                    if (op == '+') {
                         printf("ADDS\n");
-                    }else if( op == '-'){
+                    } else if (op == '-') {
                         printf("SUBS\n");
-                    }else if( op == '*'){
+                    } else if (op == '*') {
                         printf("MULS\n");
-                    }else if( op == '/'){
+                    } else if (op == '/') {
                         printf("IDIVS\n");
                     }
-                }else{
+                } else {
                     // Jednoducha premenna alebo cislo vnutri ${...}
-                    if (isdigit((unsigned char)*start)) printf("PUSHS int@%s\n", start);
-                    else printf("PUSHS LF@%s\n", get_var_name(start));
+                    if (isdigit((unsigned char)*start))
+                        printf("PUSHS int@%s\n", start);
+                    else
+                        printf("PUSHS LF@%s\n", get_var_name(start));
                 }
                 // Prevedieme vysledok na text a pripojime
                 printf("CALL $$toStr\n");
                 printf("POPS GF@$tmp2\n");
                 printf("CONCAT GF@$tmp1 GF@$tmp1 GF@$tmp2\n");
 
-            // pripad $identifikator 
-            }else if (isalpha((unsigned char)*p) || *p == '_') {
+                // pripad $identifikator
+            } else if (isalpha((unsigned char)*p) || *p == '_') {
                 char var_name[128];
                 int len = 0;
                 while (isalnum((unsigned char)*p) || *p == '_') {
-                    if (len < (int)sizeof(var_name) - 1) var_name[len++] = *p;
+                    if (len < (int)sizeof(var_name) - 1)
+                        var_name[len++] = *p;
                     p++;
                 }
                 var_name[len] = '\0';
-                //hodnotu premennej prevedieme na text a pripojime
+                // hodnotu premennej prevedieme na text a pripojime
                 printf("PUSHS LF@%s\n", get_var_name(var_name));
                 printf("CALL $$toStr\n");
                 printf("POPS GF@$tmp2\n");
@@ -360,18 +363,19 @@ void gen_interpolated_string(const char *str){
             } else {
                 exit(ERROR_SYNT);
             }
-        }else{
-                char chunk[1024];
-                int len = 0;
-                while (*p != '$' && *p != '\0') {
-                    if (len < (int)sizeof(chunk) - 1) chunk[len++] = *p;
-                    p++;
-                }
-                chunk[len]= '\0';
+        } else {
+            char chunk[1024];
+            int len = 0;
+            while (*p != '$' && *p != '\0') {
+                if (len < (int)sizeof(chunk) - 1)
+                    chunk[len++] = *p;
+                p++;
+            }
+            chunk[len] = '\0';
 
-                printf("CONCAT GF@$tmp1 GF@$tmp1 string@");
-                gen_print_escaped_string(chunk);
-                printf("\n");
+            printf("CONCAT GF@$tmp1 GF@$tmp1 string@");
+            gen_print_escaped_string(chunk);
+            printf("\n");
         }
     }
     printf("PUSHS GF@$tmp1\n");
@@ -496,17 +500,17 @@ void gen_expr(ExprNode *node) {
             break;
         }
         break;
-    case NODE_MEM:      //rozsirenie VALMEM
+    case NODE_MEM: // rozsirenie VALMEM
         gen_expr(node->left);
 
-        if(strcmp(node->value, "length") == 0){
-                printf("CALL $$strLength\n");
-        }else if (strcmp(node->value, "toInt") == 0){
-                printf("CALL $$toInt\n");
-        }else if (strcmp(node->value, "toString") == 0){
-                printf("CALL $$toStr\n");
-        }else if (strcmp(node->value, "floor") == 0){
-                printf("CALL $$floor\n");
+        if (strcmp(node->value, "length") == 0) {
+            printf("CALL $$strLength\n");
+        } else if (strcmp(node->value, "toInt") == 0) {
+            printf("CALL $$toInt\n");
+        } else if (strcmp(node->value, "toString") == 0) {
+            printf("CALL $$toStr\n");
+        } else if (strcmp(node->value, "floor") == 0) {
+            printf("CALL $$floor\n");
         }
         break;
     case NODE_INTERP:
@@ -787,7 +791,7 @@ void gen_toInt(void) {
 }
 
 // Vytvorenie pomocnej funkcie floor
-void gen_floor(void){
+void gen_floor(void) {
     printf("LABEL $$floor\n");
     printf("PUSHFRAME\n");
     printf("DEFVAR LF@val\n");
@@ -810,7 +814,7 @@ void gen_floor(void){
     printf("LABEL $$floor_ok\n");
     printf("PUSHS LF@trunc\n");
     printf("POPFRAME\n");
-    printf("RETURN\n");    
+    printf("RETURN\n");
 }
 
 // vytvorenie vstavanej funckie strLength
@@ -866,7 +870,7 @@ void gen_ord(void) {
     printf("RETURN\n");
 }
 // vytvorenie vstavanej funckie subStr
-void gen_substr(void) {
+void gen_subStr(void) {
     printf("LABEL $$subStr\n");
     printf("PUSHFRAME\n");
     printf("DEFVAR LF@val\n");
@@ -923,56 +927,56 @@ void generate_program(AstProgram *program) {
     gen_strLength();
     gen_chr();
     gen_ord();
-    gen_substr();
+    gen_subStr();
     gen_floor();
 
     cur_prog = program;
     // hlavna funkcia sa generuje ako posledna, aby po jej skonceni program nepokracoval do dalsich funkcii
     for (int pass = 0; pass < 2; pass++)
-    for (AstFunc *f = program->first_func; f != NULL; f = f->next) {
-        if ((pass == 0) == (f->is_main != 0))
-            continue;
-        cur_func = f;
+        for (AstFunc *f = program->first_func; f != NULL; f = f->next) {
+            if ((pass == 0) == (f->is_main != 0))
+                continue;
+            cur_func = f;
 
-        if (f->is_main) {
-            gen_main_start(); // LABEL $$main, CREATEFRAME, PUSHFRAME
-            snprintf(current_func_exit_label, sizeof(current_func_exit_label), "$$main_exit");
-        } else {
-            gen_func_start(f->name); // LABEL $name, PUSHFRAME
-            snprintf(current_func_exit_label, sizeof(current_func_exit_label), "$%s_exit", f->name);
+            if (f->is_main) {
+                gen_main_start(); // LABEL $$main, CREATEFRAME, PUSHFRAME
+                snprintf(current_func_exit_label, sizeof(current_func_exit_label), "$$main_exit");
+            } else {
+                gen_func_start(f->name); // LABEL $name, PUSHFRAME
+                snprintf(current_func_exit_label, sizeof(current_func_exit_label), "$%s_exit", f->name);
 
-            // Preberieme parametre funkcie (LF@param = LF@%i)
-            for (int i = 0; i < f->param_count; i++) {
-                gen_func_param(f->param_names[i], i);
+                // Preberieme parametre funkcie (LF@param = LF@%i)
+                for (int i = 0; i < f->param_count; i++) {
+                    gen_func_param(f->param_names[i], i);
+                }
+            }
+
+            // Pozbierame a vypiseme všetky DEFVAR pre telo funkcie
+            collect_defvars(f->body);
+            gen_flush_defvars();
+
+            // Vygenerujeme samotne prikazy tela funkcie
+            gen_block(f->body);
+            {
+                AstStmt *last = f->body;
+                while (last != NULL && last->next != NULL)
+                    last = last->next;
+                if (last != NULL && last->kind == AST_EXPR && f->return_type == TYPE_DOUBLE) {
+                    if ((last->expr != NULL && last->expr->datatype == TYPE_INT) ||
+                        (last->call != NULL && last->call->ret_type == TYPE_INT))
+                        printf("INT2FLOATS\n");
+                }
+            }
+            printf("LABEL %s\n", current_func_exit_label);
+            if (f->return_type == TYPE_UNIT && !f->is_main) {
+                printf("PUSHS nil@nil\n");
+            }
+
+            // Ukoncime funkciu
+            if (f->is_main) {
+                gen_main_end(); // POPFRAME
+            } else {
+                gen_func_end(); // POPFRAME, RETURN
             }
         }
-
-        // Pozbierame a vypiseme všetky DEFVAR pre telo funkcie
-        collect_defvars(f->body);
-        gen_flush_defvars();
-
-        // Vygenerujeme samotne prikazy tela funkcie
-        gen_block(f->body);
-        {
-            AstStmt *last = f->body;
-            while (last != NULL && last->next != NULL)
-                last = last->next;
-            if (last != NULL && last->kind == AST_EXPR && f->return_type == TYPE_DOUBLE) {
-                if ((last->expr != NULL && last->expr->datatype == TYPE_INT) ||
-                    (last->call != NULL && last->call->ret_type == TYPE_INT))
-                    printf("INT2FLOATS\n");
-            }
-        }
-        printf("LABEL %s\n", current_func_exit_label);
-        if (f->return_type == TYPE_UNIT && !f->is_main) {
-            printf("PUSHS nil@nil\n");
-        }
-
-        // Ukoncime funkciu
-        if (f->is_main) {
-            gen_main_end(); // POPFRAME
-        } else {
-            gen_func_end(); // POPFRAME, RETURN
-        }
-    }
 }
