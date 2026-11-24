@@ -320,7 +320,8 @@ static void end_statement(void){
     expect(TOKEN_EOL);
 }
 
-static ExprNode *interp_append(ExprNode *result, ExprNode *part){
+#if 0
+//static ExprNode *interp_append(ExprNode *result, ExprNode *part){
     if(result == NULL){
         return part;
     }
@@ -331,7 +332,7 @@ static ExprNode *interp_append(ExprNode *result, ExprNode *part){
     return node;
 }
 
-static ExprNode *interp_add_text(ExprNode *result, const char *text, int len){
+//static ExprNode *interp_add_text(ExprNode *result, const char *text, int len){
     char chunk[1001];
     int pos = 0;
 
@@ -351,7 +352,7 @@ static ExprNode *interp_add_text(ExprNode *result, const char *text, int len){
     return result;
 }
 
-static ExprNode *interp_to_string(ExprNode *node, Datatype type){
+//static ExprNode *interp_to_string(ExprNode *node, Datatype type){
     if(type == TYPE_STRING){
         return node;
     }
@@ -368,7 +369,7 @@ static ExprNode *interp_to_string(ExprNode *node, Datatype type){
 
 static void check_expr_vars(ExprNode *node);
 
-static ExprNode *interp_expression(const char *expr_text){
+//static ExprNode *interp_expression(const char *expr_text){
     Token tok;
     ExprNode *node = NULL;
     Datatype expr_type = TYPE_ANY;
@@ -402,7 +403,7 @@ static ExprNode *interp_expression(const char *expr_text){
 
 }
 
-static ExprNode *parse_interpolated(const char *text){
+//static ExprNode *parse_interpolated(const char *text){
     ExprNode *result = NULL;
     int len = strlen(text);
     char *buf = malloc(len + 1);
@@ -527,6 +528,7 @@ static ExprNode *parse_interpolated(const char *text){
     }
     return result;
 }
+#endif
 
 
 static ExprNode *parse_term(Datatype *type){
@@ -589,10 +591,7 @@ static ExprNode *parse_term(Datatype *type){
         break;}
 
     case TOKEN_INTERP_STRING:
-        if(value[0] == '-'){
-            syntax_error();
-        }
-        node = parse_interpolated(current_token.attribute);
+        node = create_leaf(NODE_INTERP, TYPE_STRING, value);
         *type = TYPE_STRING;
         break;
 
@@ -713,25 +712,6 @@ static void check_expr_vars(ExprNode *node){
 static void parse_value(ExprNode **expr, AstCall **call, Datatype *type){
     *expr = NULL;
     *call = NULL;
-
-    if(current_token.type == TOKEN_INTERP_STRING){
-        *expr = parse_interpolated(current_token.attribute);
-        fetch_token();
-        while(current_token.type == TOKEN_PLUS){
-            fetch_token();
-            ExprNode *rhs = NULL;
-            AstCall *rhs_call = NULL;
-            Datatype rhs_type = TYPE_ANY;
-            parse_value(&rhs, &rhs_call, &rhs_type);
-            if(rhs == NULL || rhs_type != TYPE_STRING){
-                fprintf(stderr, "semantic error: invalid string concatenation\n");
-                exit(6);
-            }
-            *expr = interp_append(*expr, rhs);
-        }
-        *type = TYPE_STRING;
-        return;
-    }
 
     TokenType start_type = current_token.type;
     char *start_name = NULL;

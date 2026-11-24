@@ -256,9 +256,11 @@ void gen_interpolated_string(const char *str){
                     }
                 }
                 expr_buff[len] = '\0';
-                if (*p == '}')
+                if (*p == '}'){
                     p++;    //preskocime
-
+                }else{
+                    exit(ERROR_SYNT);
+                }
                 //orezanie medzier
                 char *start = expr_buff;
                 while ( *start == ' ' || *start == '\t'){
@@ -355,8 +357,10 @@ void gen_interpolated_string(const char *str){
                 printf("CALL $$toStr\n");
                 printf("POPS GF@$tmp2\n");
                 printf("CONCAT GF@$tmp1 GF@$tmp1 GF@$tmp2\n");
-                }
-            }else{
+            } else {
+                exit(ERROR_SYNT);
+            }
+        }else{
                 char chunk[1024];
                 int len = 0;
                 while (*p != '$' && *p != '\0') {
