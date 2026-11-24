@@ -333,6 +333,19 @@ void gen_expr(ExprNode *node) {
             break;
         }
         break;
+    case NODE_MEM:      //rozsirenie VALMEM
+        gen_expr(node->left);
+
+        if(strcmp(node->value, "length") == 0){
+                printf("CALL $$strLength\n");
+        }else if (strcmp(node->value, "toInt") == 0){
+                printf("CALL $$toInt\n");
+        }else if (strcmp(node->value, "toString") == 0){
+                printf("CALL $$toStr\n");
+        }else if (strcmp(node->value, "floor") == 0){
+                printf("CALL $$floor\n");
+        }
+        break;
     default:
         break;
     }
@@ -619,6 +632,34 @@ void gen_toInt(void) {
     printf("POPFRAME\n");
     printf("RETURN\n");
 }
+
+// Vytvorenie pomocnej funkcie floor
+void gen_floor(void){
+    printf("LABEL $$floor\n");
+    printf("PUSHFRAME\n");
+    printf("DEFVAR LF@val\n");
+    printf("DEFVAR LF@trunc\n");
+    printf("POPS LF@val\n");
+
+    printf("FLOAT2INT LF@trunc LF@val\n"); // Orezeme desatinnu cast: Double -> Int -> Double
+    printf("INT2FLOAT LF@trunc LF@trunc\n");
+    // Ak LF@trunc > LF@val (stalo sa to pri zapornom necelom cisle, napr. -5.0 > -5.7),
+    // podla definicie floor musime odpocitat 1.0 (-5.0 - 1.0 = -6.0)
+    printf("PUSHS LF@trunc\n");
+    printf("PUSHS LF@val\n");
+    printf("GTS\n");
+    printf("PUSHS bool@true\n");
+    printf("JUMPIFNEQS $$floor_ok\n");
+    printf("PUSHS LF@trunc\n");
+    printf("PUSHS float@0x1p+0\n"); // 1.0
+    printf("SUBS\n");
+    printf("POPS LF@trunc\n");
+    printf("LABEL $$floor_ok\n");
+    printf("PUSHS LF@trunc\n");
+    printf("POPFRAME\n");
+    printf("RETURN\n");    
+}
+
 // vytvorenie vstavanej funckie strLength
 void gen_strLength(void) {
     printf("LABEL $$strLength\n");
@@ -730,6 +771,7 @@ void generate_program(AstProgram *program) {
     gen_chr();
     gen_ord();
     gen_substr();
+    gen_floor();
 
     cur_prog = program;
     // hlavna funkcia sa generuje ako posledna, aby po jej skonceni program nepokracoval do dalsich funkcii

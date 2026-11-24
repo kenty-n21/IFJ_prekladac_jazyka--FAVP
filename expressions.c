@@ -78,6 +78,7 @@ static PrecSymbol token_to_symbol(Token *token){
    }
 }
 
+
 //funkcia na overenie ci je symbol operator
 static bool is_binary_op(PrecSymbol symbol){
    switch(symbol) {
@@ -96,7 +97,7 @@ static bool is_binary_op(PrecSymbol symbol){
    }
 }
 
-//funkcia kontoluje sematiku datovzch tzpov a vracia vysledny typ vyrazu
+//funkcia kontoluje sematiku datovych tzpov a vracia vysledny typ vyrazu
 static int semantic_check(PrecSymbol op, Datatype left, Datatype right,Datatype* result){
    bool num_left = (left == TYPE_DOUBLE || left == TYPE_INT);
    bool num_right = (right == TYPE_DOUBLE || right == TYPE_INT);
@@ -145,6 +146,7 @@ static int semantic_check(PrecSymbol op, Datatype left, Datatype right,Datatype*
    default: return ERROR_SEM_TYPE;
    }
 }
+
 //pomocne funkcie pre AST
 
 //vytvori uzol pre literal alebo premennu
@@ -194,6 +196,22 @@ ExprNode* create_binary(PrecSymbol symbol, ExprNode *left, ExprNode *right, Data
    NewNode->value[0] = '\0';
    return NewNode;
 }
+//vytvori uzol pre pristup k clenu
+ExprNode* create_member(ExprNode *child, Datatype datatype, const char *member_name){
+   ExprNode *NewNode = (ExprNode*)malloc(sizeof(struct ExprNode));
+   if(NewNode == NULL){
+      return NULL;
+   } 
+   NewNode->nodetype = NODE_MEM;
+   NewNode->symbol = SYM_ID;
+   NewNode->left = child;
+   NewNode->right = NULL; 
+   NewNode->datatype = datatype;
+   strncpy(NewNode->value, member_name, sizeof(NewNode->value) - 1);
+   NewNode->value[sizeof(NewNode->value) - 1] = '\0';
+
+   return NewNode;
+}
 
 //uvolni podstrom
 void expr_free(ExprNode *node){
@@ -206,6 +224,63 @@ void expr_free(ExprNode *node){
 
 
 
+//spracovavanie bezeparametrickych vstavanych funkcii pre rozsirenie VALMEM
+static int process_member_access(Token *current_token, ExprNode **node, Datatype *datatype){
+   while (current_token->type == TOKEN_DOT){
+      *current_token = get_next_token();
+      //kontrola
+
+      if(current_token->type == TOKEN_ERROR){
+         return ERROR_LEX;
+      }else if(current_token->type != TOKEN_IDENTIFIER){
+         return ERROR_SYNT;
+      }
+
+      char member[128];
+      strncpy(member, current_token->attribute, sizeof(member) - 1);
+      member[sizeof(member) - 1] = '\0';
+      Datatype result;
+      if(strcmp(member,"toString") == 0){
+         result = TYPE_STRING;
+
+      }else if(strcmp(member,"toInt") == 0){
+         if(*datatype == TYPE_DOUBLE){
+            result = TYPE_INT;
+         }else{
+            return ERROR_SEM_TYPE;
+         }
+         
+      }else if(strcmp(member,"floor") == 0){
+         if(*datatype == TYPE_DOUBLE){
+            result = TYPE_DOUBLE;
+         }else{
+            return ERROR_SEM_TYPE;
+         }
+
+      }else if(strcmp(member,"length") == 0){
+         if(*datatype == TYPE_STRING){
+            result = TYPE_INT;
+         }else{
+            return ERROR_SEM_TYPE;
+         }
+      }else{
+         //neznamy clen
+         return ERROR_SEM_UNDEF;
+      }
+      
+      //overenie zatvoriek
+      *current_token = get_next_token();
+      if(current_token->type == TOKEN_LPAREN)
+         return ERROR_SYNT;
+      
+      ExprNode *new_node = create_member(*node, result, member);
+      if (new_node == NULL) 
+         return ERROR_INTERNAL;
+      *node = new_node;
+      *datatype = result;
+   }
+   return NO_ERROR;
+}
 
 
 
@@ -413,20 +488,36 @@ int parse_expression(Token *current_token, ExprNode **root, Datatype *type, symt
             }
             //kedze sme nacitali cislo alebo premennu a podobne uz neocakavame dasi operand
             expecting_operand = false;
-         }else
+
+            // Nacitame token hned za operandom
+            *current_token = get_next_token();
+            if (current_token->type == TOKEN_ERROR) {
+               free_stack(&stack);
+               return ERROR_LEX;
+            }
+
+            // Rozsirenie VALMEM: ak nasleduje bodka a clen, spracujeme ho
+            int err = process_member_access(current_token, &data.node, &data.type);
+            if (err != NO_ERROR) {
+               free_stack(&stack);
+               return err;
+            }
+         }else{
             //ak to budu +, - , * , / , ( ,....
             expecting_operand = true;
          
-         if(!push_stack(&stack, data)){
-            free_stack(&stack);
-            return ERROR_INTERNAL;
-         }  
-         //nacitanie dlasieho tokenu
-         *current_token = get_next_token();
-         if(current_token->type == TOKEN_ERROR){
-            free_stack(&stack);
-            return ERROR_LEX;
+            //nacitanie dlasieho tokenu
+            *current_token = get_next_token();
+            if(current_token->type == TOKEN_ERROR){
+               free_stack(&stack);
+               return ERROR_LEX;
+            }
          }
+            // push hotoveho symbolu na zasobnik
+            if(!push_stack(&stack, data)){
+               free_stack(&stack);
+               return ERROR_INTERNAL;
+         }  
          break;
       // > 
       case PREC_REDUCE:{

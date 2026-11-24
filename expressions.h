@@ -9,7 +9,6 @@
 #include "error.h"
 #include "scanner.h"   // tokeny
 #include "symtable.h"  // tabuľka symbolov
-// #include "parser.h" ale pozor na cyklickú závislosť
 
 
 // Hodnoty buniek tabuľky.
@@ -25,7 +24,8 @@ typedef enum{
     NODE_LITERAL,       // literal
     NODE_VAR,           // identifikator premennej
     NODE_UNARY,         // unarny operator
-    NODE_BINARY         // binarny operator
+    NODE_BINARY,        // binarny operator
+    NODE_MEM            // pre VALMEM rozsirenie (.length, .toInt, .floor, .toString)
 }NodeType;
 
 typedef struct ExprNode{
