@@ -69,6 +69,19 @@ TESTS = [
         "CALL $$strLength",
         "Pouzitie .length vo vnutri aritmetickeho vyrazu"
     ),
+    (
+        "length_multiple_in_subtraction",
+        """import ifj26.*
+@main def run(): Unit =
+    val s1 = "dlhy retazec"
+    val s2 = "kratky"
+    val diff = s1.length - s2.length
+    print(diff)
+""",
+        0,
+        "CALL $$strLength",
+        "Rozdiel dlzok dvoch retazcov cez .length"
+    ),
 
     # =========================================================================
     # KATEGORIA 2: .toInt (Double -> Int)
@@ -108,6 +121,18 @@ TESTS = [
         0,
         "CALL $$toInt",
         "Prevod Double s nulovou desatinnou castou"
+    ),
+    (
+        "toInt_zero_double",
+        """import ifj26.*
+@main def run(): Unit =
+    val d = 0.0
+    val i = d.toInt
+    print(i)
+""",
+        0,
+        "CALL $$toInt",
+        "Prevod 0.0 na Int"
     ),
 
     # =========================================================================
@@ -149,12 +174,24 @@ TESTS = [
         "CALL $$floor",
         "Floor na zapornom celom cisle (-5.0 -> -5.0)"
     ),
+    (
+        "floor_zero",
+        """import ifj26.*
+@main def run(): Unit =
+    val d = 0.0
+    val f = d.floor
+    print(f)
+""",
+        0,
+        "CALL $$floor",
+        "Floor na hodnote 0.0"
+    ),
 
     # =========================================================================
     # KATEGORIA 4: .toString (Any -> String)
     # =========================================================================
     (
-        "toString_from_int",
+        "toString_from_int_var",
         """import ifj26.*
 @main def run(): Unit =
     val n = 42
@@ -164,6 +201,17 @@ TESTS = [
         0,
         "CALL $$toStr",
         "Prevod Int na String cez .toString"
+    ),
+    (
+        "toString_from_int_literal",
+        """import ifj26.*
+@main def run(): Unit =
+    val s = 5.toString
+    print(s)
+""",
+        0,
+        "CALL $$toStr",
+        "Prevod Int literalu na String (5.toString)"
     ),
     (
         "toString_from_double",
@@ -188,6 +236,17 @@ TESTS = [
         0,
         "CALL $$toStr",
         "Prevod String na String cez .toString"
+    ),
+    (
+        "toString_from_empty_string",
+        """import ifj26.*
+@main def run(): Unit =
+    val s = "".toString
+    print(s)
+""",
+        0,
+        "CALL $$toStr",
+        "Prevod prazdneho String na String"
     ),
 
     # =========================================================================
@@ -229,9 +288,65 @@ TESTS = [
         "CALL $$floor",
         "Trojite retazenie d.floor.toInt.toString"
     ),
+    (
+        "chain_floor_repeated",
+        """import ifj26.*
+@main def run(): Unit =
+    val d = 8.9
+    val res = d.floor.floor.floor
+    print(res)
+""",
+        0,
+        "CALL $$floor",
+        "Viacnasobne opakovane volanie .floor"
+    ),
 
     # =========================================================================
-    # KATEGORIA 6: Chybove stavy - Syntakticka chyba (Exit code 2)
+    # KATEGORIA 6: Cleny v riadiacich strukturach a funkciach
+    # =========================================================================
+    (
+        "member_in_if_condition",
+        """import ifj26.*
+@main def run(): Unit =
+    val s = "test"
+    if s.length > 0 then
+        print("neprazdny")
+    else
+        print("prazdny")
+""",
+        0,
+        "CALL $$strLength",
+        "Pouzitie .length priamo v podmienke if"
+    ),
+    (
+        "member_in_while_condition",
+        """import ifj26.*
+@main def run(): Unit =
+    var d = 3.5
+    while d.floor > 0.0 do
+        d = d - 1.0
+""",
+        0,
+        "CALL $$floor",
+        "Pouzitie .floor v podmienke while"
+    ),
+    (
+        "member_in_return_stmt",
+        """import ifj26.*
+def getLen(str: String): Int =
+    return str.length
+
+@main def run(): Unit =
+    val len = getLen("ahoj")
+    print(len)
+""",
+        0,
+        "CALL $$strLength",
+        "Pouzitie clena v prikaze return"
+    ),
+
+    # =========================================================================
+    # KATEGORIA 7: Chybove stavy - Syntakticka chyba (Exit code 2)
     # =========================================================================
     (
         "err_synt_parens_length",
@@ -255,6 +370,16 @@ TESTS = [
         "Zakazane prazdne zatvorky: .toInt()"
     ),
     (
+        "err_synt_parens_with_args",
+        """import ifj26.*
+@main def run(): Unit =
+    val x = "ahoj".length(10)
+""",
+        2,
+        None,
+        "Zakazane zatvorky s argumentom: .length(10)"
+    ),
+    (
         "err_synt_trailing_dot",
         """import ifj26.*
 @main def run(): Unit =
@@ -264,9 +389,29 @@ TESTS = [
         None,
         "Bodka na konci bez nazvu clena: 'ahoj'."
     ),
+    (
+        "err_synt_double_dot",
+        """import ifj26.*
+@main def run(): Unit =
+    val x = "ahoj"..length
+""",
+        2,
+        None,
+        "Dvojita bodka: 'ahoj'..length"
+    ),
+    (
+        "err_synt_keyword_as_member",
+        """import ifj26.*
+@main def run(): Unit =
+    val x = "ahoj".if
+""",
+        2,
+        None,
+        "Klucove slovo na mieste clena: 'ahoj'.if"
+    ),
 
     # =========================================================================
-    # KATEGORIA 7: Chybove stavy - Typova nekompatibilita (Exit code 6)
+    # KATEGORIA 8: Chybove stavy - Typova nekompatibilita (Exit code 6)
     # =========================================================================
     (
         "err_type_length_on_int",
@@ -345,9 +490,20 @@ TESTS = [
         None,
         "Typova chyba pri retazeni: s.length vrati Int, na ktorom nie je floor"
     ),
+    (
+        "err_type_assign_floor_to_int",
+        """import ifj26.*
+@main def run(): Unit =
+    val d = 5.5
+    val x: Int = d.floor
+""",
+        6,
+        None,
+        "Typova chyba: priradenie Double (vysledok d.floor) do premennej typu Int"
+    ),
 
     # =========================================================================
-    # KATEGORIA 8: Chybove stavy - Nedefinovany clen (Exit code 3)
+    # KATEGORIA 9: Chybove stavy - Nedefinovany clen / Case-sensitivity (Exit code 3)
     # =========================================================================
     (
         "err_undef_member_size",
@@ -381,6 +537,28 @@ TESTS = [
         3,
         None,
         "Neznamy clen: x.nejakaMetoda"
+    ),
+    (
+        "err_undef_case_sensitive_length",
+        """import ifj26.*
+@main def run(): Unit =
+    val s = "ahoj"
+    val x = s.Length
+""",
+        3,
+        None,
+        "Case-sensitivity: s.Length s velkym L je neznamy clen"
+    ),
+    (
+        "err_undef_case_sensitive_toint",
+        """import ifj26.*
+@main def run(): Unit =
+    val d = 4.2
+    val x = d.ToInt
+""",
+        3,
+        None,
+        "Case-sensitivity: d.ToInt s velkym T je neznamy clen"
     ),
 ]
 
@@ -429,7 +607,6 @@ def main():
 
     current_cat = None
     for name, code, expected_code, expected_substr, desc in TESTS:
-        # Vypis kategorie
         cat = name.split("_")[0]
         if cat != current_cat:
             current_cat = cat
@@ -439,10 +616,10 @@ def main():
 
         if success:
             passed += 1
-            print(f"  [{GREEN}PASS{RESET}] {name:<30} - {desc}")
+            print(f"  [{GREEN}PASS{RESET}] {name:<35} - {desc}")
         else:
             failed += 1
-            print(f"  [{RED}FAIL{RESET}] {name:<30} - {desc}")
+            print(f"  [{RED}FAIL{RESET}] {name:<35} - {desc}")
             print(f"         {YELLOW}-> Dovod: {msg}{RESET}")
 
     total = passed + failed

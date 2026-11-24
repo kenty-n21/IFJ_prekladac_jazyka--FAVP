@@ -5,48 +5,65 @@
 
 
 [1m--> Skupina testov: LENGTH[0m
-  [[92mPASS[0m] length_literal                 - Zistenie dlzky retazcoveho literalu
-  [[92mPASS[0m] length_empty_string            - Zistenie dlzky prazdneho retazca
-  [[92mPASS[0m] length_variable                - Zistenie dlzky retazca z premennej
-  [[92mPASS[0m] length_in_expression           - Pouzitie .length vo vnutri aritmetickeho vyrazu
+  [[92mPASS[0m] length_literal                      - Zistenie dlzky retazcoveho literalu
+  [[92mPASS[0m] length_empty_string                 - Zistenie dlzky prazdneho retazca
+  [[92mPASS[0m] length_variable                     - Zistenie dlzky retazca z premennej
+  [[92mPASS[0m] length_in_expression                - Pouzitie .length vo vnutri aritmetickeho vyrazu
+  [[92mPASS[0m] length_multiple_in_subtraction      - Rozdiel dlzok dvoch retazcov cez .length
 
 [1m--> Skupina testov: TOINT[0m
-  [[92mPASS[0m] toInt_positive                 - Prevod kladneho Double na Int
-  [[92mPASS[0m] toInt_negative                 - Prevod zaporneho Double na Int
-  [[92mPASS[0m] toInt_exact_zero_fraction      - Prevod Double s nulovou desatinnou castou
+  [[92mPASS[0m] toInt_positive                      - Prevod kladneho Double na Int
+  [[92mPASS[0m] toInt_negative                      - Prevod zaporneho Double na Int
+  [[92mPASS[0m] toInt_exact_zero_fraction           - Prevod Double s nulovou desatinnou castou
+  [[92mPASS[0m] toInt_zero_double                   - Prevod 0.0 na Int
 
 [1m--> Skupina testov: FLOOR[0m
-  [[92mPASS[0m] floor_positive                 - Floor na kladnom Double (5.8 -> 5.0)
-  [[92mPASS[0m] floor_negative                 - Floor na zapornom Double (-5.8 -> -6.0)
-  [[92mPASS[0m] floor_exact_negative           - Floor na zapornom celom cisle (-5.0 -> -5.0)
+  [[92mPASS[0m] floor_positive                      - Floor na kladnom Double (5.8 -> 5.0)
+  [[92mPASS[0m] floor_negative                      - Floor na zapornom Double (-5.8 -> -6.0)
+  [[92mPASS[0m] floor_exact_negative                - Floor na zapornom celom cisle (-5.0 -> -5.0)
+  [[92mPASS[0m] floor_zero                          - Floor na hodnote 0.0
 
 [1m--> Skupina testov: TOSTRING[0m
-  [[92mPASS[0m] toString_from_int              - Prevod Int na String cez .toString
-  [[92mPASS[0m] toString_from_double           - Prevod Double na String cez .toString
-  [[92mPASS[0m] toString_from_string           - Prevod String na String cez .toString
+  [[92mPASS[0m] toString_from_int_var               - Prevod Int na String cez .toString
+  [[92mPASS[0m] toString_from_int_literal           - Prevod Int literalu na String (5.toString)
+  [[92mPASS[0m] toString_from_double                - Prevod Double na String cez .toString
+  [[92mPASS[0m] toString_from_string                - Prevod String na String cez .toString
+  [[92mPASS[0m] toString_from_empty_string          - Prevod prazdneho String na String
 
 [1m--> Skupina testov: CHAIN[0m
-  [[92mPASS[0m] chain_floor_toInt              - Retazenie d.floor.toInt
-  [[92mPASS[0m] chain_length_toString          - Retazenie s.length.toString
-  [[92mPASS[0m] chain_floor_toInt_toString     - Trojite retazenie d.floor.toInt.toString
+  [[92mPASS[0m] chain_floor_toInt                   - Retazenie d.floor.toInt
+  [[92mPASS[0m] chain_length_toString               - Retazenie s.length.toString
+  [[92mPASS[0m] chain_floor_toInt_toString          - Trojite retazenie d.floor.toInt.toString
+  [[92mPASS[0m] chain_floor_repeated                - Viacnasobne opakovane volanie .floor
+
+[1m--> Skupina testov: MEMBER[0m
+  [[92mPASS[0m] member_in_if_condition              - Pouzitie .length priamo v podmienke if
+  [[92mPASS[0m] member_in_while_condition           - Pouzitie .floor v podmienke while
+  [[92mPASS[0m] member_in_return_stmt               - Pouzitie clena v prikaze return
 
 [1m--> Skupina testov: ERR[0m
-  [[92mPASS[0m] err_synt_parens_length         - Zakazane prazdne zatvorky: .length()
-  [[92mPASS[0m] err_synt_parens_toInt          - Zakazane prazdne zatvorky: .toInt()
-  [[92mPASS[0m] err_synt_trailing_dot          - Bodka na konci bez nazvu clena: 'ahoj'.
-  [[92mPASS[0m] err_type_length_on_int         - Typova chyba: .length na Int
-  [[92mPASS[0m] err_type_length_on_double      - Typova chyba: .length na Double
-  [[92mPASS[0m] err_type_toInt_on_string       - Typova chyba: .toInt na String
-  [[92mPASS[0m] err_type_toInt_on_int          - Typova chyba: .toInt na Int (toInt je len pre Double)
-  [[92mPASS[0m] err_type_floor_on_string       - Typova chyba: .floor na String
-  [[92mPASS[0m] err_type_floor_on_int          - Typova chyba: .floor na Int (floor je len pre Double)
-  [[92mPASS[0m] err_type_chain_mismatch        - Typova chyba pri retazeni: s.length vrati Int, na ktorom nie je floor
-  [[92mPASS[0m] err_undef_member_size          - Neznamy clen: s.size namiesto length
-  [[92mPASS[0m] err_undef_member_round         - Neznamy clen: d.round (v IFJ26 neexistuje)
-  [[92mPASS[0m] err_undef_member_arbitrary     - Neznamy clen: x.nejakaMetoda
+  [[92mPASS[0m] err_synt_parens_length              - Zakazane prazdne zatvorky: .length()
+  [[92mPASS[0m] err_synt_parens_toInt               - Zakazane prazdne zatvorky: .toInt()
+  [[92mPASS[0m] err_synt_parens_with_args           - Zakazane zatvorky s argumentom: .length(10)
+  [[92mPASS[0m] err_synt_trailing_dot               - Bodka na konci bez nazvu clena: 'ahoj'.
+  [[92mPASS[0m] err_synt_double_dot                 - Dvojita bodka: 'ahoj'..length
+  [[92mPASS[0m] err_synt_keyword_as_member          - Klucove slovo na mieste clena: 'ahoj'.if
+  [[92mPASS[0m] err_type_length_on_int              - Typova chyba: .length na Int
+  [[92mPASS[0m] err_type_length_on_double           - Typova chyba: .length na Double
+  [[92mPASS[0m] err_type_toInt_on_string            - Typova chyba: .toInt na String
+  [[92mPASS[0m] err_type_toInt_on_int               - Typova chyba: .toInt na Int (toInt je len pre Double)
+  [[92mPASS[0m] err_type_floor_on_string            - Typova chyba: .floor na String
+  [[92mPASS[0m] err_type_floor_on_int               - Typova chyba: .floor na Int (floor je len pre Double)
+  [[92mPASS[0m] err_type_chain_mismatch             - Typova chyba pri retazeni: s.length vrati Int, na ktorom nie je floor
+  [[92mPASS[0m] err_type_assign_floor_to_int        - Typova chyba: priradenie Double (vysledok d.floor) do premennej typu Int
+  [[92mPASS[0m] err_undef_member_size               - Neznamy clen: s.size namiesto length
+  [[92mPASS[0m] err_undef_member_round              - Neznamy clen: d.round (v IFJ26 neexistuje)
+  [[92mPASS[0m] err_undef_member_arbitrary          - Neznamy clen: x.nejakaMetoda
+  [[92mPASS[0m] err_undef_case_sensitive_length     - Case-sensitivity: s.Length s velkym L je neznamy clen
+  [[92mPASS[0m] err_undef_case_sensitive_toint      - Case-sensitivity: d.ToInt s velkym T je neznamy clen
 
 [1m[96m======================================================================[0m
-[1mVYSLEDOK: Celkovo: 29 | [92mPreslo: 29[0m | [91mZlyhalo: 0[0m
+[1mVYSLEDOK: Celkovo: 44 | [92mPreslo: 44[0m | [91mZlyhalo: 0[0m
 [1m[92mVsetky testy pre VALMEM uspesne presli! Gratulujem![0m
 [1m[96m======================================================================[0m
 
