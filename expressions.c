@@ -286,10 +286,6 @@ static int process_member_access(Token *current_token, ExprNode **node, Datatype
 
 
 
-
-
-
-
 //redukcna funkcia podla definovanzch pravidiel
 int reduce(TStack *stack){
    TSElem *Current = stack->top;
@@ -432,6 +428,7 @@ int parse_expression(Token *current_token, ExprNode **root, Datatype *type, symt
          if(top_elem->data.symbol == SYM_NONTERM){
             *root = top_elem->data.node;
             *type = top_elem->data.type;
+            top_elem->data.node = NULL;
             free_stack(&stack);
             return NO_ERROR;
          }else{

@@ -7,6 +7,7 @@
 #include <stdbool.h>    // True a False
 #include "stack.h"
 #include "symtable.h"
+#include "expressions.h"
 
 //inicializácia zásobníka
 void init_stack(TStack *s){
@@ -91,6 +92,9 @@ bool is_empty_stack(TStack *s){
 //uvoľni celý zásobník
 void free_stack(TStack *s){
     while(!is_empty_stack(s)){
+        if(s->top->data.node != NULL){
+            expr_free(s->top->data.node);
+        }
         pop_stack(s);
     }
 }
