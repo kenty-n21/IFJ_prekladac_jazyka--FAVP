@@ -82,6 +82,7 @@ static void gen_call_stmt(AstCall *call) {
         for (int i = 0; i < call->arg_count; i++) { //!!!!
             gen_expr(call->args[i]);
         }
+        printf("CREATEFRAME\n"); // cisty ramec az tesne pred volanim (argument mohol volat inu funkciu)
         printf("CALL $$%s\n", call->name);
     } else {
         for (int i = 0; i < call->arg_count; i++) { // prechadzanie vsetkych argumentov volania z lava do prava
@@ -95,6 +96,10 @@ static void gen_call_stmt(AstCall *call) {
                     break;
                 }
             }
+        }
+        // ramec vytvarame az po vyhodnoteni vsetkych argumentov, aby ho volanie vo vnutri argumentu neprepisalo
+        gen_call_start();
+        for (int i = call->arg_count - 1; i >= 0; i--) { // argumenty su na zasobniku v opacnom poradi
             gen_call_argument(i);
         }
         gen_call(call->name);
@@ -341,6 +346,7 @@ void gen_interpolated_string(const char *str) {
                         printf("PUSHS LF@%s\n", get_var_name(start));
                 }
                 // Prevedieme vysledok na text a pripojime
+                printf("CREATEFRAME\n");
                 printf("CALL $$toStr\n");
                 printf("POPS GF@$tmp2\n");
                 printf("CONCAT GF@$tmp1 GF@$tmp1 GF@$tmp2\n");
@@ -357,6 +363,7 @@ void gen_interpolated_string(const char *str) {
                 var_name[len] = '\0';
                 // hodnotu premennej prevedieme na text a pripojime
                 printf("PUSHS LF@%s\n", get_var_name(var_name));
+                printf("CREATEFRAME\n");
                 printf("CALL $$toStr\n");
                 printf("POPS GF@$tmp2\n");
                 printf("CONCAT GF@$tmp1 GF@$tmp1 GF@$tmp2\n");
@@ -504,12 +511,16 @@ void gen_expr(ExprNode *node) {
         gen_expr(node->left);
 
         if (strcmp(node->value, "length") == 0) {
+            printf("CREATEFRAME\n");
             printf("CALL $$strLength\n");
         } else if (strcmp(node->value, "toInt") == 0) {
+            printf("CREATEFRAME\n");
             printf("CALL $$toInt\n");
         } else if (strcmp(node->value, "toString") == 0) {
+            printf("CREATEFRAME\n");
             printf("CALL $$toStr\n");
         } else if (strcmp(node->value, "floor") == 0) {
+            printf("CREATEFRAME\n");
             printf("CALL $$floor\n");
         }
         break;
