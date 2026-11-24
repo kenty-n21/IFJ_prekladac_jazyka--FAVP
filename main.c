@@ -29,13 +29,8 @@ static void print_token(Token t) {
 }
 #endif
 
-/**
- * Hlavny vstupny bod prekladaca IFJ26.
- * Cita zdrojovy kod zo stdin, generuje IFJcode26 na stdout a vracia chybovy kod.
- * Chybove a ladiace vypisy idu na stderr.
- *
- * @return 0 pri uspechu, inak kod chyby (1-7, 10, 99) podla zadania.
- */
+// Hlavna funkcia prekladaca: cita zdrojovy kod IFJ26 zo stdin a vypisuje IFJcode26 na stdout
+// Vracia 0 pri uspechu, inak kod chyby (1-7, 10, 99) podla zadania
 int main(void) {
     scanner_init();
 
