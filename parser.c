@@ -268,6 +268,7 @@ static void prepare_input(void){
     if(dup2(fileno(tmp), STDIN_FILENO) < 0){
         exit(99);
     }
+    fclose(tmp);
     rewind_input();
 
 }
@@ -875,7 +876,6 @@ static AstStmt *parser_statements(void){
     return first;
 }
 
-
 static void parse_parameter_list(int is_main){
     
     expect(TOKEN_LPAREN);
@@ -1284,7 +1284,6 @@ static void process_function(int idx){
     parsing_idx = -1;
 }
 
-
 int parser_program(void){
 
     current_symtable = init_hash_table();
@@ -1350,5 +1349,73 @@ AstProgram *parser_get_program(void){
     return ast_program;
 }
 
+static void free_stmt_list(AstStmt *s) {
+    while (s != NULL) {
+        AstStmt *next = s->next;
+        if (s->name != NULL) free(s->name);
+        if (s->expr != NULL) expr_free(s->expr);
+        if (s->call != NULL) {
+            if (s->call->name != NULL) free(s->call->name);
+            if (s->call->args != NULL) {
+                for (int i = 0; i < s->call->arg_count; i++) {
+                    if (s->call->args[i] != NULL) expr_free(s->call->args[i]);
+                }
+                free(s->call->args);
+            }
+            free(s->call);
+        }
+        if (s->then_block != NULL) free_stmt_list(s->then_block);
+        if (s->else_block != NULL) free_stmt_list(s->else_block);
+        free(s);
+        s = next;
+    }
+}
 
+void parser_cleanup(void) {
+    // 1. Uvoľnenie AST stromu celého programu (funkcie, parametre, telá)
+    if (ast_program != NULL) {
+        AstFunc *f = ast_program->first_func;
+        while (f != NULL) {
+            AstFunc *next_f = f->next;
+            if (f->name != NULL) free(f->name);
+            if (f->param_names != NULL) {
+                for (int i = 0; i < f->param_count; i++) {
+                    if (f->param_names[i] != NULL) free(f->param_names[i]);
+                }
+                free(f->param_names);
+            }
+            if (f->param_types != NULL) free(f->param_types);
+            if (f->param_ids != NULL) free(f->param_ids);
+            if (f->body != NULL) free_stmt_list(f->body);
+            free(f);
+            f = next_f;
+        }
+        free(ast_program);
+        ast_program = NULL;
+    }
+    // 2. Uvoľnenie tabuľky symbolov
+    if (current_symtable != NULL) {
+        delete_hash_tabulka(current_symtable);
+        current_symtable = NULL;
+    }
+    // 3. Uvoľnenie interných polí parsera (funkcie a premenné)
+    if (funcs != NULL) {
+        for (int i = 0; i < func_count; i++) {
+            if (funcs[i].name != NULL) free(funcs[i].name);
+        }
+        free(funcs);
+        funcs = NULL;
+        func_count = 0;
+        func_cap = 0;
+    }
+    if (vars != NULL) {
+        for (int i = 0; i < var_count; i++) {
+            if (vars[i].name != NULL) free(vars[i].name);
+        }
+        free(vars);
+        vars = NULL;
+        var_count = 0;
+        var_cap = 0;
+    }
+}
 

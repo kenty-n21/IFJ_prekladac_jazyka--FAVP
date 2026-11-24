@@ -70,5 +70,6 @@ typedef struct
 
 int parser_program(void);
 AstProgram *parser_get_program(void);
+void parser_cleanup(void);
 
 #endif

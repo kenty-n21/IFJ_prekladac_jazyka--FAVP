@@ -63,6 +63,8 @@ int main(void) {
     // Spustenie generatora cieloveho kodu nad vytvorenym AST stromom
     generate_program(parser_get_program());
 
+    parser_cleanup();
+
     return 0; // 0 pri uspechu
 #endif
 }
