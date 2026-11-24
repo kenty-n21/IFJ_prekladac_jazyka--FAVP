@@ -432,14 +432,29 @@ static ExprNode *parse_interpolated(const char *text){
             int start = i + 2;
             int depth = 1;
             int j = start;
+            bool in_str = false;
 
             while (j < len && depth > 0)
             {
-                if(text[j] == '{'){
-                    depth++;
+                if(in_str){
+                    if(text[j] == '\\' && j + 1 < len){
+                        j += 2;
+                        continue;
+                    }
+                    if(text[j] == '"'){
+                        in_str = false;
+                    }
                 }
-                else if(text[j] == '}'){
-                    depth--;
+                else{
+                    if(text[j] == '"'){
+                        in_str = true;
+                    }
+                    else if(text[j] == '{'){
+                        depth++;
+                    }
+                    else if(text[j] == '}'){
+                        depth--;
+                    }
                 }
                 j++;
             }
@@ -702,6 +717,18 @@ static void parse_value(ExprNode **expr, AstCall **call, Datatype *type){
     if(current_token.type == TOKEN_INTERP_STRING){
         *expr = parse_interpolated(current_token.attribute);
         fetch_token();
+        while(current_token.type == TOKEN_PLUS){
+            fetch_token();
+            ExprNode *rhs = NULL;
+            AstCall *rhs_call = NULL;
+            Datatype rhs_type = TYPE_ANY;
+            parse_value(&rhs, &rhs_call, &rhs_type);
+            if(rhs == NULL || rhs_type != TYPE_STRING){
+                fprintf(stderr, "semantic error: invalid string concatenation\n");
+                exit(6);
+            }
+            *expr = interp_append(*expr, rhs);
+        }
         *type = TYPE_STRING;
         return;
     }
