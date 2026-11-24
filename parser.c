@@ -1372,7 +1372,7 @@ static void free_stmt_list(AstStmt *s) {
 }
 
 void parser_cleanup(void) {
-    // 1. Uvoľnenie AST stromu celého programu (funkcie, parametre, telá)
+    // 1. Uvolnenie AST stromu celého programu (funkcie, parametre, tela)
     if (ast_program != NULL) {
         AstFunc *f = ast_program->first_func;
         while (f != NULL) {
@@ -1393,12 +1393,12 @@ void parser_cleanup(void) {
         free(ast_program);
         ast_program = NULL;
     }
-    // 2. Uvoľnenie tabuľky symbolov
+    // 2. Uvolnenie tabulky symbolov
     if (current_symtable != NULL) {
         delete_hash_tabulka(current_symtable);
         current_symtable = NULL;
     }
-    // 3. Uvoľnenie interných polí parsera (funkcie a premenné)
+    // 3. Uvolnenie interných poli parsera (funkcie a premenné)
     if (funcs != NULL) {
         for (int i = 0; i < func_count; i++) {
             if (funcs[i].name != NULL) free(funcs[i].name);
