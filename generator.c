@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 static int label_counter = 0; // pocitadlo navesti/skokov
 #define NAME_LEN 4200
@@ -214,6 +215,164 @@ void gen_while_end(int label_id) {
     printf("JUMP $$while_%d\n", label_id);
     printf("LABEL $$while_end_%d\n", label_id);
 }
+
+// konvertovanie retazca z C do platneho formatu IFJcode26
+void gen_print_escaped_string(const char *str) {
+    if (str == NULL)
+        return;
+
+    for (int i = 0; str[i] != '\0'; i++) { // prechadza retazec do konca
+        unsigned char c = (unsigned char)str[i];
+        if (c <= 32 || c == 35 || c == 92) { // overuje ci ide o neviditelne znaky, medzeru, #, lomitko
+            printf("\\%03d", c);             // vypise cislo znaku v desiatkovej sustave a so spravnym formatovanim
+        } else {
+            putchar(c);
+        }
+    }
+}
+
+void gen_interpolated_string(const char *str){
+    //osetrenie prazdneho retazca
+    if(str == NULL)
+        return;
+
+    printf("MOVE GF@$tmp1 string@\n");
+
+    const char *p = str;
+    while (*p != '\0') {
+        if (*p == '$') {
+            p++; // preskocime '$'
+            if( *p == '$'){
+                printf("CONCAT GF@$tmp1 GF@$tmp1 string@\\036\n"); // \036 je ASCII znak '$'
+                p++;
+            }else if(*p == '{'){
+                p++; //preskocime zatvorku
+                char expr_buff[256];
+                int len = 0;
+                while( *p != '}' && *p != '\0'){
+                    if (len < (int)sizeof(expr_buff) - 1){
+                        expr_buff[len++] = *p;
+                        p++;
+                    }
+                }
+                expr_buff[len] = '\0';
+                if (*p == '}')
+                    p++;    //preskocime
+
+                //orezanie medzier
+                char *start = expr_buff;
+                while ( *start == ' ' || *start == '\t'){
+                    start++;
+                }
+                char *end = start + strlen(start) - 1;
+                while(end > start && (*end == ' ' || *end == '\t')){
+                    *end = '\0';
+                    end--;
+                }
+
+                 // Hladame operator (+, -, *, /) pre specialne pripady
+                char op = '\0';
+                char *op_pos = NULL;
+                for (char *c = start; *c != '\0'; c++) {
+                    if (*c == '+' || *c == '-' || *c == '*' || *c == '/') {
+                        op = *c;
+                        op_pos = c;
+                        break;
+                    }
+                }
+
+                if(op_pos != NULL){
+                     // Je to vyraz s operatorom, napr. "n + 1"
+                    char left_op[128], right_op[128];
+                    int left_len = op_pos - start;
+                    strncpy(left_op, start, left_len);
+                    left_op[left_len] = '\0';
+                    strcpy(right_op, op_pos + 1);
+
+                    // Orezanie
+                    char *l = left_op; 
+                    while (*l == ' ') {
+                        l++;
+                    }
+
+                    char *le = l + strlen(l) - 1; 
+                    while (le > l && *le == ' '){ 
+                        *le = '\0'; 
+                        le--; 
+                    }
+                    char *r = right_op; 
+                    while (*r == ' '){
+                        r++;
+                    }
+                    char *re = r + strlen(r) - 1; 
+                    while (re > r && *re == ' '){ 
+                        *re = '\0'; 
+                        re--; 
+                    }
+                    // Lavy operand na zasobnik
+                    if (isdigit((unsigned char)*l)){
+                        printf("PUSHS int@%s\n", l);
+                    }else{
+                        printf("PUSHS LF@%s\n", get_var_name(l));
+                    }
+                    // Pravy operand na zasobnik
+                    if (isdigit((unsigned char)*r)){
+                        printf("PUSHS int@%s\n", r); 
+                    }else{
+                        printf("PUSHS LF@%s\n", get_var_name(r));
+                    } 
+                    // Instrukcia podla operatora
+                    if(op == '+'){
+                        printf("ADDS\n");
+                    }else if( op == '-'){
+                        printf("SUBS\n");
+                    }else if( op == '*'){
+                        printf("MULS\n");
+                    }else if( op == '/'){
+                        printf("IDIVS\n");
+                    }
+                }else{
+                    // Jednoducha premenna alebo cislo vnutri ${...}
+                    if (isdigit((unsigned char)*start)) printf("PUSHS int@%s\n", start);
+                    else printf("PUSHS LF@%s\n", get_var_name(start));
+                }
+                // Prevedieme vysledok na text a pripojime
+                printf("CALL $$toStr\n");
+                printf("POPS GF@$tmp2\n");
+                printf("CONCAT GF@$tmp1 GF@$tmp1 GF@$tmp2\n");
+
+            // pripad $identifikator 
+            }else if (isalpha((unsigned char)*p) || *p == '_') {
+                char var_name[128];
+                int len = 0;
+                while (isalnum((unsigned char)*p) || *p == '_') {
+                    if (len < (int)sizeof(var_name) - 1) var_name[len++] = *p;
+                    p++;
+                }
+                var_name[len] = '\0';
+                //hodnotu premennej prevedieme na text a pripojime
+                printf("PUSHS LF@%s\n", get_var_name(var_name));
+                printf("CALL $$toStr\n");
+                printf("POPS GF@$tmp2\n");
+                printf("CONCAT GF@$tmp1 GF@$tmp1 GF@$tmp2\n");
+                }
+            }else{
+                char chunk[1024];
+                int len = 0;
+                while (*p != '$' && *p != '\0') {
+                    if (len < (int)sizeof(chunk) - 1) chunk[len++] = *p;
+                    p++;
+                }
+                chunk[len]= '\0';
+
+                printf("CONCAT GF@$tmp1 GF@$tmp1 string@");
+                gen_print_escaped_string(chunk);
+                printf("\n");
+        }
+    }
+    printf("PUSHS GF@$tmp1\n");
+}
+
 // rekurzivne vyhodnotenie stromu (post-order prechod)
 // vysledky kazdeho podvyrazu sa napisu na vrchol zasobniku
 void gen_expr(ExprNode *node) {
@@ -333,6 +492,10 @@ void gen_expr(ExprNode *node) {
             break;
         }
         break;
+    case NODE_INTERP:
+        gen_interpolated_string(node->value);
+        break;
+
     default:
         break;
     }
@@ -364,20 +527,6 @@ void gen_call_argument(int index) {
 // vykonanie skoku do uzivatelskej funkcie
 void gen_call(const char *name) {
     printf("CALL $%s\n", name);
-}
-// konvertovanie retazca z C do platneho formatu IFJcode26
-void gen_print_escaped_string(const char *str) {
-    if (str == NULL)
-        return;
-
-    for (int i = 0; str[i] != '\0'; i++) { // prechadza retazec do konca
-        unsigned char c = (unsigned char)str[i];
-        if (c <= 32 || c == 35 || c == 92) { // overuje ci ide o neviditelne znaky, medzeru, #, lomitko
-            printf("\\%03d", c);             // vypise cislo znaku v desiatkovej sustave a so spravnym formatovanim
-        } else {
-            putchar(c);
-        }
-    }
 }
 // zaciatok hlavneho programu
 void gen_main_start(void) {
