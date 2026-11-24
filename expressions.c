@@ -73,6 +73,7 @@ static PrecSymbol token_to_symbol(Token *token){
       case TOKEN_INTEGER:
       case TOKEN_DOUBLE:
       case TOKEN_STRING:
+      case TOKEN_INTERP_STRING:
          return SYM_ID;
       default : return SYM_DOLLAR;
    }
@@ -468,6 +469,12 @@ int parse_expression(Token *current_token, ExprNode **root, Datatype *type, symt
                data.node = create_leaf(NODE_LITERAL, TYPE_STRING, current_token->attribute);
                data.type = TYPE_STRING;
                break;
+
+            case TOKEN_INTERP_STRING:
+               data.node = create_leaf(NODE_INTERP, TYPE_STRING,current_token->attribute);
+               data.type = TYPE_STRING;
+               break;
+               
             case TOKEN_IDENTIFIER:{
                //zistenie typu premennej, ak nema definovany alebo je nedeklarovany vrati error
                //ak v tabulke symbolov najde typ premennej tak ho definuje

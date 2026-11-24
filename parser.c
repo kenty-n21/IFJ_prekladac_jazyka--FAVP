@@ -9,6 +9,7 @@
 #include <string.h>
 #include <setjmp.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #include "parser.h"
 #include "scanner.h"        
@@ -64,8 +65,9 @@ typedef struct
 
 
 ExprNode* create_leaf(NodeType nodetype, Datatype datatype, const char *value);
+ExprNode* create_binary(PrecSymbol sybol, ExprNode* left, ExprNode* right, Datatype datatype);
 
-//current token 
+
 static Token current_token; 
 
 static symtable *current_symtable = NULL;
@@ -318,6 +320,217 @@ static void end_statement(void){
     expect(TOKEN_EOL);
 }
 
+#if 0
+//static ExprNode *interp_append(ExprNode *result, ExprNode *part){
+    if(result == NULL){
+        return part;
+    }
+    ExprNode *node = create_binary(SYM_PLUS, result, part, TYPE_STRING);
+    if(node == NULL){
+        exit(99);
+    }
+    return node;
+}
+
+//static ExprNode *interp_add_text(ExprNode *result, const char *text, int len){
+    char chunk[1001];
+    int pos = 0;
+
+    while(pos < len){
+        int n = (len - pos > 1000) ? 1000 : len - pos;
+        memcpy(chunk, text + pos, n);
+        chunk[n] = '\0';
+
+        ExprNode *leaf = create_leaf(NODE_LITERAL, TYPE_STRING, chunk);
+        if(leaf == NULL){
+            exit(99);
+        }
+
+        result = interp_append(result, leaf);
+        pos += n;
+    }
+    return result;
+}
+
+//static ExprNode *interp_to_string(ExprNode *node, Datatype type){
+    if(type == TYPE_STRING){
+        return node;
+    }
+
+    ExprNode *conv = create_leaf(NODE_LITERAL, TYPE_STRING, "toString");
+    if(conv == NULL){
+        exit(99);
+    }
+
+    conv->nodetype = NODE_MEMBER;
+    conv->left = node;
+    return conv;
+}
+
+static void check_expr_vars(ExprNode *node);
+
+//static ExprNode *interp_expression(const char *expr_text){
+    Token tok;
+    ExprNode *node = NULL;
+    Datatype expr_type = TYPE_ANY;
+
+    scanner_push_string(expr_text);
+
+    tok = get_next_token();
+
+    if(tok.type == TOKEN_ERROR){
+        fprintf(stderr, "Lexical error in code\n");
+        exit(1);
+    }
+
+    int expr_err = parse_expression(&tok, &node, &expr_type, current_symtable, current_scope_level);
+    if(expr_err != 0){
+        exit(expr_err);
+    }
+    check_expr_vars(node);
+
+    if(tok.type != TOKEN_EOL && tok.type != TOKEN_EOF){
+        syntax_error();
+    }
+
+    tok = get_next_token();
+    if(tok.type != TOKEN_EOF){
+        syntax_error();
+    }
+
+    scanner_pop_string();
+    return interp_to_string(node, expr_type);
+
+}
+
+//static ExprNode *parse_interpolated(const char *text){
+    ExprNode *result = NULL;
+    int len = strlen(text);
+    char *buf = malloc(len + 1);
+    if(buf == NULL){
+        exit(99);
+    }
+
+    int blen = 0;
+    int i = 0;
+
+    while(i < len){
+        if(text[i] != '$'){
+            buf[blen++] = text[i++];
+            continue;
+        }
+
+        if(text[i+1] == '$'){
+            buf[blen++] = '$';
+            i += 2;
+            continue;
+        }
+
+        result = interp_add_text(result, buf, blen);
+        blen = 0;
+
+        if(text[i+1] == '{'){
+            int start = i + 2;
+            int depth = 1;
+            int j = start;
+            bool in_str = false;
+
+            while (j < len && depth > 0)
+            {
+                if(in_str){
+                    if(text[j] == '\\' && j + 1 < len){
+                        j += 2;
+                        continue;
+                    }
+                    if(text[j] == '"'){
+                        in_str = false;
+                    }
+                }
+                else{
+                    if(text[j] == '"'){
+                        in_str = true;
+                    }
+                    else if(text[j] == '{'){
+                        depth++;
+                    }
+                    else if(text[j] == '}'){
+                        depth--;
+                    }
+                }
+                j++;
+            }
+            if(depth != 0){
+                syntax_error();
+            }
+
+            int elen = j - 1 - start;
+            char *expr_text = malloc(elen + 1);
+            if(expr_text == NULL){
+                exit(99);
+            }
+
+            memcpy(expr_text, text + start, elen);
+            expr_text[elen] = '\0';
+
+            result = interp_append(result, interp_expression(expr_text));
+            free(expr_text);
+            i = j;
+            
+        }
+        else if(isalpha((unsigned char)text[i+1]) || text[i+1] == '_'){
+            int start = i + 1;
+            int j = start;
+
+            while (j < len && (isalnum((unsigned char)text[j]) || text[j] == '_')){
+                j++;
+            }
+            char *name = malloc(j - start + 1);
+            if(name == NULL){
+                exit(99);
+            }
+
+            memcpy(name, text + start, j - start);
+            name[j - start] = '\0';
+
+            if(strcmp(name, "_") == 0){
+                syntax_error();
+            }
+
+            Symboldata *var = find_var(current_symtable, current_scope_level, name);
+            if(var == NULL){
+                fprintf(stderr, "semantic error: variable '%s' was not declared\n", name);
+                exit(3);
+            }
+
+            ExprNode *leaf = create_leaf(NODE_VAR, var->typ, name);
+            if(leaf == NULL){
+                exit(99);
+            }
+
+            result = interp_append(result, interp_to_string(leaf, var->typ));
+            free(name);
+            i = j;
+             
+        }
+        else{
+            syntax_error();
+        }
+    }
+
+    result = interp_add_text(result, buf, blen);
+    free(buf);
+
+    if(result == NULL){
+        result = create_leaf(NODE_LITERAL, TYPE_STRING, "");
+        if(result == NULL){
+            exit(99);
+        }
+    }
+    return result;
+}
+#endif
+
+
 static ExprNode *parse_term(Datatype *type){
     ExprNode *node = NULL;
     bool is_ident = false;
@@ -376,6 +589,11 @@ static ExprNode *parse_term(Datatype *type){
         *type = var->typ;
         is_ident = true;
         break;}
+
+    case TOKEN_INTERP_STRING:
+        node = create_leaf(NODE_INTERP, TYPE_STRING, value);
+        *type = TYPE_STRING;
+        break;
 
     default:
         syntax_error();
@@ -824,6 +1042,8 @@ static AstStmt *parser_statements(void){
 
         case TOKEN_STRING:
 
+        case TOKEN_INTERP_STRING:
+
         case TOKEN_LPAREN:
 
         case TOKEN_MINUS:
@@ -845,7 +1065,6 @@ static AstStmt *parser_statements(void){
         case TOKEN_EOL:
             fetch_token();
             break;
-            
 
         default:
             syntax_error();

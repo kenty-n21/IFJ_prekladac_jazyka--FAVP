@@ -25,7 +25,8 @@ typedef enum{
     NODE_VAR,           // identifikator premennej
     NODE_UNARY,         // unarny operator
     NODE_BINARY,        // binarny operator
-    NODE_MEM            // pre VALMEM rozsirenie (.length, .toInt, .floor, .toString)
+    NODE_MEM,            // pre VALMEM rozsirenie (.length, .toInt, .floor, .toString)
+    NODE_INTERP         // pre rozšírenie INTERPOLATED
 }NodeType;
 
 typedef struct ExprNode{
