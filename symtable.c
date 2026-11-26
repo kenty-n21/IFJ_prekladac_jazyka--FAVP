@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+// typy premennej/ navratovej funkcie
 typedef enum {
     TYPE_INT,
     TYPE_DOUBLE,
@@ -42,7 +43,8 @@ typedef struct symtable {
 // ako taku pretoze ta zas obsahuje ine funkcie a inak to nefunguje
 bool hash_table_insert(Symboldata *s, symtable *t);
 void delete_hash_tabulka(symtable *t); // !!!!! gcc -std=c11 -Wall -Wextra -pedantic zbehne bez erroru
-// vyhlada index kde ma byt ulozena dana hodnota
+
+// ak je tabulka plna tak ju zvacsi dna dvojnasobok a vlozi do nej platne prvky (nevlozi NULL a deleted_item)
 symtable *resize_hash_table(symtable *ptr) {
     if (ptr == NULL) {
         return NULL;
@@ -69,6 +71,7 @@ symtable *resize_hash_table(symtable *ptr) {
     free(stare_pole);
     return ptr;
 }
+// vypocet hashu - 37 - prvocilo pre lepsie rozptylenie
 unsigned int hash_funkcia(char *meno) {
     int dlzka = strlen(meno);
     unsigned int hash_hodnota = 0;
@@ -77,7 +80,7 @@ unsigned int hash_funkcia(char *meno) {
     }
     return hash_hodnota;
 }
-// inicializuje tabulku
+// inicializuje tabulku a prvych 10 prvkov nastavy na NULL
 symtable *init_hash_table(void) {
     symtable *t;
     t = malloc(sizeof(symtable));
@@ -128,6 +131,7 @@ Symboldata *hash_table_lookup(char *s, symtable *t) {
     int index = hash_hodnota % t->velkost_tabulky;
     for (int i = 0; i < t->velkost_tabulky; i++) {
         int try = (i + index) % t->velkost_tabulky;
+        // prestane hladat ake najde NULL
         if (t->hash_table[try] == NULL) {
             return NULL;
         }
@@ -137,7 +141,7 @@ Symboldata *hash_table_lookup(char *s, symtable *t) {
     }
     return NULL;
 }
-
+// funkcia na unikatne vytvorenie kluca v tvare scope_level$nazov
 char *make_compose_key(int scope_level, char *meno) {
     int len = snprintf(NULL, 0, "%d$%s", scope_level, meno); // funkcia ktora pise do pamati na nejake dane miesto( ak je tam null nezapise nikam)
 
@@ -183,6 +187,7 @@ bool insert_var(symtable *t, char *meno, Datatype typ, int scope_level) {
     free(s);
     return false;
 }
+// vlozenie funckie do tabulky, najprv ale pozrieme ci sa tam uz nenachadza a ak nie tak az potom ju vlozime
 bool insert_func(symtable *t, char *meno, Datatype return_typ, int param_count, Datatype *param_type) {
     if (t == NULL || meno == NULL) {
         return false;
@@ -215,12 +220,13 @@ bool insert_func(symtable *t, char *meno, Datatype return_typ, int param_count, 
     if (hash_table_insert(s, t)) {
         return true;
     }
+    // mazes iba vtedy ked sa nepodarilo vlozit
     delete_hash_tabulka(s->local_table);
     free(s->meno);
     free(s);
     return false;
 }
-// hladanie kluca vnorenych funkciach
+// hladanie kluca vnorenych blokoch
 Symboldata *lookup_var(int scope_level, char *meno, symtable *t) {
     if (t == NULL) {
         return NULL;
@@ -241,7 +247,7 @@ Symboldata *lookup_var(int scope_level, char *meno, symtable *t) {
     }
     return hash_table_lookup(meno, t);
 }
-
+// vlozenie do tabulky vstavane funkcie
 void insert_included_fun(symtable *t) {
     if (t == NULL) {
         return;

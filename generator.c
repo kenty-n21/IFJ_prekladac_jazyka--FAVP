@@ -22,27 +22,34 @@ typedef struct {
     char renamed[NAME_LEN];
 } ShadowVar;
 
-static ShadowVar shadow_stack[1024];
-static int shadow_count = 0;
-static AstFunc *cur_func = NULL;
-static AstProgram *cur_prog = NULL;
-
+static ShadowVar shadow_stack[1024]; // staticke pole pre shadow stack
+static int shadow_count = 0;         // pocet veci v nom
+static AstFunc *cur_func = NULL;     // ukazovatel na strukturu reprez. funkciu v  AST
+static AstProgram *cur_prog = NULL;  // ukazovatel na koren AST
+// preklad povodnej premmenej na novy v tvare nazov_cislo
 static const char *get_var_name(const char *orig_name) {
+    // prehladava zasobnik z vrchu na dol
     for (int i = shadow_count - 1; i >= 0; i--) {
+        // hladanie mena
         if (strcmp(shadow_stack[i].original, orig_name) == 0) {
+            // vrati jej novy nazov
             return shadow_stack[i].renamed;
         }
     }
     return orig_name;
 }
-
+// naplni zasobnik  premennymi ktore boli predtym premenovane
 static void collect_shadow_for_block(AstStmt *s) {
+    // prechadza zoznam prikazov
     for (; s != NULL; s = s->next) {
+        // ignoruje vsetko okrem definicii premennych
         if (s->kind == AST_VARDEF && s->name != NULL) {
+            // hlada tie premenne podla vzorca strrchr  + cislo
             char *underscore = strrchr(s->name, '_');
             if (underscore != NULL && *(underscore + 1) >= '0' && *(underscore + 1) <= '9') {
                 char orig[NAME_LEN];
                 strncpy(orig, s->name, NAME_LEN - 1);
+                // spravi originaly nazov napr z x_1 -> x
                 orig[underscore - s->name] = '\0';
 
                 strncpy(shadow_stack[shadow_count].original, orig, NAME_LEN - 1);
@@ -56,7 +63,7 @@ static void collect_shadow_for_block(AstStmt *s) {
 static void gen_statement(AstStmt *s);
 
 // funckia na pozeranie ci je volana funkcia vstavana
-static bool is_build_fun(const char *name) { //!!!
+static bool is_build_fun(const char *name) {
     if (name == NULL) {
         return false;
     }
@@ -79,7 +86,7 @@ static void gen_call_stmt(AstCall *call) {
     gen_call_start();
     // kontrola ci je to vstavana funkcia
     if (is_build_fun(call->name)) {
-        for (int i = 0; i < call->arg_count; i++) { //!!!!
+        for (int i = 0; i < call->arg_count; i++) {
             gen_expr(call->args[i]);
         }
         printf("CREATEFRAME\n"); // cisty ramec az tesne pred volanim (argument mohol volat inu funkciu)
@@ -117,6 +124,7 @@ static void collect_defvars(AstStmt *s) {
                         occurrences++;
                 }
             }
+            // spocitanie kolko krat bola dana premenna deklarovana v programe
             for (int i = 0; i < defvar_count; i++) {
                 if (strcmp(defvar_buf[i], s->name) == 0 ||
                     (strncmp(defvar_buf[i], s->name, strlen(s->name)) == 0 && defvar_buf[i][strlen(s->name)] == '_')) {
@@ -150,11 +158,14 @@ static void collect_defvars(AstStmt *s) {
                 gen_var_declare(final_name);
             }
         }
+
+        // pisanie a uvilnenie zanorenia - ked vyjde z then blocku tak plati povodna premenna
         if (s->then_block != NULL) {
             int saved_shadow = shadow_count;
             collect_defvars(s->then_block);
             shadow_count = saved_shadow;
         }
+        // to iste plati co pre then block
         if (s->else_block != NULL) {
             int saved_shadow = shadow_count;
             collect_defvars(s->else_block);
@@ -235,7 +246,7 @@ void gen_print_escaped_string(const char *str) {
         }
     }
 }
-
+// generovanie interpolovanych retazcov
 void gen_interpolated_string(const char *str) {
     // osetrenie prazdneho retazca
     if (str == NULL)
@@ -244,6 +255,7 @@ void gen_interpolated_string(const char *str) {
     printf("MOVE GF@$tmp1 string@\n");
 
     const char *p = str;
+    // prechadzanie znak po znaku
     while (*p != '\0') {
         if (*p == '$') {
             p++; // preskocime '$'
@@ -371,6 +383,7 @@ void gen_interpolated_string(const char *str) {
                 exit(ERROR_SYNT);
             }
         } else {
+            // spracovanie obycajnych usekov textu
             char chunk[1024];
             int len = 0;
             while (*p != '$' && *p != '\0') {
@@ -429,7 +442,7 @@ void gen_expr(ExprNode *node) {
     case NODE_VAR:
         printf("PUSHS LF@%s\n", get_var_name(node->value));
         break;
-    // ukazne funkcie - unarne minusko
+    // unarne minusko
     case NODE_UNARY:
         gen_expr(node->left);
         if (node->datatype == TYPE_INT) {
@@ -440,7 +453,7 @@ void gen_expr(ExprNode *node) {
         }
         printf("MULS\n");
         break;
-    // binarne operacie - najprv sa vyhidnotia oba operandy na zasobnik, potom samotny operand
+    // binarne operacie - najprv sa vyhidnotia oba operandy na zasobnik, potom samotny operator
     case NODE_BINARY:
 
         gen_expr(node->left);
@@ -509,7 +522,7 @@ void gen_expr(ExprNode *node) {
         break;
     case NODE_MEM: // rozsirenie VALMEM
         gen_expr(node->left);
-
+        // podla vlastnosti v node->value sa vyberie vstavana funkcia
         if (strcmp(node->value, "length") == 0) {
             printf("CREATEFRAME\n");
             printf("CALL $$strLength\n");
@@ -566,11 +579,11 @@ void gen_main_start(void) {
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 }
-
+// ukoncuje hlavne telo programu
 void gen_main_end(void) {
     printf("POPFRAME\n");
 }
-// ukoncuje hlavne telo programu
+// postupne vygeneruje vsetky  prikazy v bloku
 static void gen_block(AstStmt *s) {
     for (; s != NULL; s = s->next) {
         gen_statement(s);
@@ -748,7 +761,7 @@ void gen_readDouble(void) {
     printf("POPFRAME\n");
     printf("RETURN\n");
 }
-// vytvorenie vstavanej funckie readDouble
+// vytvorenie vstavanej funckie toStr
 void gen_toStr(void) {
     printf("LABEL $$toStr\n");
     printf("PUSHFRAME\n");
@@ -867,10 +880,10 @@ void gen_ord(void) {
     printf("POPS LF@val\n");
     // zistenie dlzky retazcu
     printf("STRLEN LF@len LF@val\n");
-    printf("LT LF@con LF@num int@0 \n");              //<0
-    printf("JUMPIFEQ $$ord_nil LF@con bool@true\n");  // >0
-    printf("LT LF@con LF@num LF@len \n");             // platny rozsah
-    printf("JUMPIFEQ $$ord_nil LF@con bool@false\n"); // platny rozsah
+    printf("LT LF@con LF@num int@0 \n"); //<0
+    printf("JUMPIFEQ $$ord_nil LF@con bool@true\n");
+    printf("LT LF@con LF@num LF@len \n"); // kontrola ci je index v platnom rozsahu
+    printf("JUMPIFEQ $$ord_nil LF@con bool@false\n");
     printf("STRI2INT LF@sym LF@val LF@num\n");
     printf("PUSHS LF@sym\n");
     printf("JUMP $$ord_end\n");
@@ -927,7 +940,7 @@ void gen_subStr(void) {
 void generate_program(AstProgram *program) {
     if (program == NULL)
         return;
-    // volanie vtavanych funkcii
+    // vygenerovanie definicii vstavanych funkcii
     gen_init();
     gen_print();
     gen_readLine();
