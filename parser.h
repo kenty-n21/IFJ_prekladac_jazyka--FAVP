@@ -10,6 +10,7 @@
 #include "symtable.h"
 #include "expressions.h"
 
+// Typy prikazov v abstraktnom syntaktickom strome (AST)
 typedef enum{
     AST_VARDEF,
     AST_ASSIGN,
@@ -20,6 +21,7 @@ typedef enum{
 }AstStmtType;
 
 
+// Reprezentacia volania funkcie v AST
 typedef struct
 {
     char *name;
@@ -29,35 +31,38 @@ typedef struct
 }AstCall;
 
 
+// Uzol prikazu v AST (zretazeny zoznam prikazov v bloku)
 typedef struct AstStmt
 {
-    AstStmtType kind;
-    char *name;
-    int unique_id;
-    bool is_mutable;
-    Datatype datatype;
-    ExprNode *expr;
-    AstCall *call;
-    struct AstStmt *then_block;
-    struct AstStmt *else_block;
-    struct AstStmt *next;
+    AstStmtType kind;           // Typ prikazu (deklaracia, priradenie, if, while, return, vyraz)
+    char *name;                 // Meno cielovej premennej (pre AST_VARDEF a AST_ASSIGN)
+    int unique_id;              // Unikatny identifikator premennej (pre rozlisenie pri shadowingu)
+    bool is_mutable;            // true pre 'var', false pre 'val'
+    Datatype datatype;          // Vysledny datovy typ prikazu alebo premennej
+    ExprNode *expr;             // Strom vyrazu
+    AstCall *call;              // Volanie funkcie 
+    struct AstStmt *then_block; // Telo vetvy then (pri AST_IF) alebo telo cyklu (AST_WHILE)
+    struct AstStmt *else_block; // Telo vetvy else (pri AST_IF)
+    struct AstStmt *next;       // Nasledujuci prikaz v bloku
 }AstStmt;
 
+// Uzol definicie funkcie v AST
 typedef struct AstFunc
 {
-    char *name;
-    Datatype return_type;
-    bool is_main;
-    int param_count;
-    char **param_names;
-    Datatype *param_types;
-    int *param_ids;
-    AstStmt *body;
-    struct AstFunc *next;
+    char *name;                 // Meno funkcie
+    Datatype return_type;       // Navratovy typ funkcie (explicitny alebo odvodeny)
+    bool is_main;               // true ak ma funkcia anotaciu @main
+    int param_count;            // Pocet parametrov funkcie
+    char **param_names;         // Pole mien parametrov
+    Datatype *param_types;      // Pole datovych typov parametrov
+    int *param_ids;             // Pole unikatnych ID parametrov
+    AstStmt *body;              // Zoznam prikazov tela funkcie
+    struct AstFunc *next;       // Nasledujuca funkcia v programe
 
 }AstFunc;
 
 
+// Korenovy uzol AST celeho programu (obsahuje zoznam funkcii)
 typedef struct 
 {
     AstFunc *first_func;
@@ -68,8 +73,13 @@ typedef struct
 
 
 
+// Hlavny vstupny bod syntaktickej a semantickej analyzy programu
 int parser_program(void);
+
+// Vrati vytvoreny AST strom programu pre generator kodu
 AstProgram *parser_get_program(void);
+
+// Uvolni pamat alokovanu pre AST strom, tabulku symbolov a pomocne struktury
 void parser_cleanup(void);
 
 #endif

@@ -21,23 +21,27 @@
 
 
 
+// Pomocna struktura pre docasne ulozenie parametra funkcie pri parsovani hlavicky
 typedef struct parser
 {
     char *name;
     Datatype type;
 }ParamInfo;
 
+// Zaznam o funkcii pre riadenie 2. prechodu a detekciu rekurzie pri odvodzovani typu
 typedef struct 
 {
     char  *name;
-    int state;
-    int inferred;   // navratovy typ nebol uvedeny
+    int state;      // 0 = nespracovana, 1 = prave sa spracovava, 2 = hotova
+    int inferred;   // 1 ak funkcia nemala explicitne uvedeny navratovy typ
 }FuncEntry;
 
+// Graf volani medzi funkciami (hrana: parsing_idx -> volana funkcia)
 static int parsing_idx = -1;
 static int call_edges[4096][2];
 static int call_edge_count = 0;
 
+// Zaznamena orientovanu hranu v grafe volani funkcii (pre detekciu rekurzie pri odvodzovani typu)
 static void add_call_edge(int from, int to){
     if(from < 0 || to < 0){
         return;
@@ -55,6 +59,7 @@ static void add_call_edge(int from, int to){
 }
 
 
+// Informacie o lokalnej premennej (uroven zanorenia, modifikovatelnost var/val a unikatne ID)
 typedef struct
 {
     char *name;
@@ -68,6 +73,7 @@ ExprNode* create_leaf(NodeType nodetype, Datatype datatype, const char *value);
 ExprNode* create_binary(PrecSymbol sybol, ExprNode* left, ExprNode* right, Datatype datatype);
 
 
+// Globalny stav parsera: aktualny token, tabulka symbolov a uroven zanorenia blokov
 static Token current_token; 
 
 static symtable *current_symtable = NULL;
@@ -78,6 +84,7 @@ static int current_param_count = 0;
 
 static bool main_function_found = false;
 
+// Navratovy typ prave parsovanej funkcie (pre kontrolu prikazov return)
 static Datatype current_func_ret_type = TYPE_UNIT;
 static bool current_func_explicit = false;
 
@@ -92,10 +99,12 @@ static int var_count = 0;
 static int var_cap = 0;
 static int var_counter = 0;
 
+//Kontext pre navrat cez longjmp, ked volana funkcia este nema odvodeny navratovy typ
 static jmp_buf parse_jmp;
 static int blocked_on = -1;
 
-//deklaration of funktions
+
+// Dopredu deklarovane funkcie parsera
 static void fetch_token(void);
 static void expect(TokenType expect_type);
 static void syntax_error(void);
@@ -116,6 +125,7 @@ static AstCall *parse_function_call(char *name);
 
 
 
+// Nacita dalsi token zo scannera
 static void fetch_token(void){  
 
     current_token = get_next_token();
@@ -127,14 +137,16 @@ static void fetch_token(void){
 
 }
 
+// Vypise syntakticku chybu a ukonci prekladac
 static void syntax_error(void){
-    fprintf(stderr, "Syntax errror in code\n");
+    fprintf(stderr, "Syntax error in code\n");
     
     exit(2);
 }
 
 
 
+// Overi, ci aktualny token zodpoveda ocakavanemu typu; ak ano, nacita dalsi token
 static void expect(TokenType expected_type){  
     if (current_token.type == expected_type){
         fetch_token();
@@ -145,6 +157,7 @@ static void expect(TokenType expected_type){
 }
 
 
+// Alokuje a vytvori dynamicku kopiu retazca
 static char *copy_string(const char *src){
     char *dst = malloc(strlen(src)+1);
     if(dst == NULL){
@@ -155,6 +168,7 @@ static char *copy_string(const char *src){
 }
 
 
+// Alokuje a inicializuje novy AST uzol prikazu daneho typu
 static AstStmt *new_stmt(AstStmtType kind){
     AstStmt *stmt = calloc(1, sizeof(AstStmt));
     if(stmt == NULL){
@@ -165,10 +179,12 @@ static AstStmt *new_stmt(AstStmtType kind){
 }
 
 
+// Skontroluje typovu kompatibilitu (vratane konverzie Int -> Double)
 static bool is_compatible(Datatype target, Datatype src){
     return target == TYPE_ANY || target == src || (target == TYPE_DOUBLE && src == TYPE_INT);
 }
 
+// Zakaze ukladanie, odovzdavanie alebo vracanie pravdivostnej hodnoty
 static void check_not_bool(Datatype type){
     if(type == TYPE_BOOL){
         fprintf(stderr, "semantic eror: boolean value can not be stored, passed or returned\n");
@@ -176,10 +192,12 @@ static void check_not_bool(Datatype type){
     }
 }
 
+// Vyhlada zaznam funkcie v globalnom scope tabulky symbolov
 static Symboldata *lookup_func(symtable *t, char *func_name){
     return lookup_var(0, func_name, t);
 }
 
+// Vyhlada premennu v aktualnom alebo nadradenom scope (odfiltruje zaznamy funkcii)
 static Symboldata *find_var(symtable *t, int scope_level, char *name){
     Symboldata *data = lookup_var(scope_level, name, t);
     if(data != NULL && data->is_function){
@@ -188,6 +206,7 @@ static Symboldata *find_var(symtable *t, int scope_level, char *name){
     return data;
 }
 
+// Zaregistruje novu lokalnu premennu v zasobniku premennych a priradi jej unikatne ID
 static int register_var(const char *name, int level, bool is_mutabe){
     if(var_count == var_cap){
         var_cap = (var_cap == 0) ? 32 : var_cap * 2;
@@ -204,6 +223,7 @@ static int register_var(const char *name, int level, bool is_mutabe){
     return var_counter;
 }
 
+// Najde najblizsiu (najvnutornejsiu) deklaraciu premennej podla mena
 static VarInfo *find_var_info(const char *name){
     for(int i = var_count -1; i >= 0; i--){
         if(strcmp(vars[i].name, name) == 0){
@@ -213,6 +233,7 @@ static VarInfo *find_var_info(const char *name){
     return NULL;
 }
 
+// Opusti aktualny blok (scope) a odstrani premenne tejto urovne z tabulky aj zo zasobnika
 static void leave_scope(void){
     exit_scope(current_scope_level, current_symtable);
     while(var_count > 0 && vars[var_count -1].level == current_scope_level){
@@ -222,6 +243,7 @@ static void leave_scope(void){
     current_scope_level--;
 }
 
+// Zaregistruje funkciu do zoznamu funkcii programu pre druhy prechod parsera
 static void register_function(const char *name){
     if(func_count == func_cap){
         func_cap = (func_cap == 0) ? 16 : func_cap *2;
@@ -236,6 +258,7 @@ static void register_function(const char *name){
     func_count++;
 }
 
+// Vrati index funkcie v poli funcs podla mena 
 static int find_func_index(const char *name){
     for(int i = 0; i < func_count; i++){
         if(strcmp(funcs[i].name, name) == 0){
@@ -245,11 +268,13 @@ static int find_func_index(const char *name){
     return -1;
 }
 
+// Vrati citanie zo standardneho vstupu spat na zaciatok suboru
 static void rewind_input(void){
     fseek(stdin, 0, SEEK_SET);
     clearerr(stdin);
 }
 
+// Skopiruje cely stdin do docasneho suboru, aby bolo mozne vstup citat vo viacerych prechodoch
 static void prepare_input(void){
     FILE *tmp = tmpfile();
     if(tmp == NULL){
@@ -265,6 +290,7 @@ static void prepare_input(void){
     }
     fflush(tmp);
 
+    // Presmerovanie deskriptora STDIN na docasny subor umoznujuce opakovany fseek
     if(dup2(fileno(tmp), STDIN_FILENO) < 0){
         exit(99);
     }
@@ -274,6 +300,7 @@ static void prepare_input(void){
 }
 
 
+// Overi povinny prolog programu: import ifj26.*
 static void parse_prolog(void){
     expect(TOKEN_KW_IMPORT);   
     
@@ -287,6 +314,7 @@ static void parse_prolog(void){
     expect(TOKEN_EOL);
 }
 
+// Spracuje klucove slovo datoveho typu (Int, Double, String, Unit)
 static Datatype parse_type(void){
     Datatype type = TYPE_UNIT;
 
@@ -313,6 +341,7 @@ static Datatype parse_type(void){
     return type;
 }
 
+// Overi ukoncenie prikazu 
 static void end_statement(void){
     if(current_token.type == TOKEN_SEMICOLON){
         fetch_token();
@@ -321,12 +350,14 @@ static void end_statement(void){
     expect(TOKEN_EOL);
 }
 
+// Spracuje jeden term (literal alebo premennu) ako argument volania funkcie a odmietne vnorene volanie funkcie (is_ident a TOKEN_LPAREN)
 static ExprNode *parse_term(Datatype *type){
     ExprNode *node = NULL;
     bool is_ident = false;
     char value[MAX_TOKEN_LEN + 2];
     value[0] = '\0';
     
+    // Podpora zapornych ciselnych literalov (-Int, -Double)
     if(current_token.type == TOKEN_MINUS){
         fetch_token();
         if(current_token.type != TOKEN_INTEGER && current_token.type != TOKEN_DOUBLE){
@@ -336,6 +367,7 @@ static ExprNode *parse_term(Datatype *type){
     }
     strcat(value, current_token.attribute);
 
+    // Podla typu tokenu vytvorime listovy uzol AST pre literal alebo premennu (s overenim deklaracie v symtable)
     switch (current_token.type)
     {
     case TOKEN_INTEGER:
@@ -368,7 +400,7 @@ static ExprNode *parse_term(Datatype *type){
     case TOKEN_IDENTIFIER:{
         Symboldata *var = find_var(current_symtable, current_scope_level, current_token.attribute);
         if(var == NULL){
-            fprintf(stderr, "sematic error: variable '%s' was not declared\n", current_token.attribute);
+            fprintf(stderr, "semantic error: variable '%s' was not declared\n", current_token.attribute);
             fetch_token();
             if(current_token.type == TOKEN_LPAREN){
                 syntax_error();
@@ -381,6 +413,7 @@ static ExprNode *parse_term(Datatype *type){
         break;}
 
     case TOKEN_INTERP_STRING:
+        // Uzol NODE_INTERP (definovany v expressions.h) pre interpolovany retazec s"..."
         node = create_leaf(NODE_INTERP, TYPE_STRING, value);
         *type = TYPE_STRING;
         break;
@@ -400,6 +433,7 @@ static ExprNode *parse_term(Datatype *type){
     return node;
 }
 
+// Spracuje volanie funkcie, skontroluje pocet a typy argumentov a vrati uzol AstCall
 static AstCall *parse_function_call(char *name){
 
     char *func_name = copy_string(name);
@@ -413,16 +447,18 @@ static AstCall *parse_function_call(char *name){
         exit(3);
     }
 
+    // Ak funkcia este nema navratovy typ (TYPE_ANY), prerusime parsovanie funkcie pomocou longjmp (najprv sa spracuje volana funkcia)
     if(func_data->typ == TYPE_ANY){
         int idx  = find_func_index(func_name);
         if(idx < 0 || funcs[idx].state == 1){
-            fprintf(stderr, "semantic error: recursive function '%s' nned explicit return type\n", func_name);
+            fprintf(stderr, "semantic error: recursive function '%s' need explicit return type\n", func_name);
             exit(6);
         }
         blocked_on = idx;
         longjmp(parse_jmp, 1);
     }
 
+    // Zaznamename volanie do grafu volani pre neskorsiu kontrolu nepriamej rekurzie
     add_call_edge(parsing_idx, find_func_index(func_name));
 
     AstCall *call = calloc(1, sizeof(AstCall));
@@ -441,6 +477,7 @@ static AstCall *parse_function_call(char *name){
 
     int arg_count = 0;
 
+    // Postupne nacitanie argumentov volania a kontrola ich poctu a typov 
     while (current_token.type != TOKEN_RPAREN && current_token.type != TOKEN_EOF){
         if(current_token.type == TOKEN_COMMA){
             syntax_error();
@@ -464,6 +501,7 @@ static AstCall *parse_function_call(char *name){
         if(current_token.type == TOKEN_COMMA){
             fetch_token();
 
+            // Koncova ciarka pred ')' je povolena iba vo viacriadkovom zapise
             if(current_token.type == TOKEN_RPAREN && !current_token.had_newline_before){
                 syntax_error();
             }
@@ -485,6 +523,7 @@ static AstCall *parse_function_call(char *name){
     
 }
 
+// Dodatocna kontrola pre parse_expression: (lookup_var v symtable.c vracia aj funkcie -> overenie, ze ziadny identifikator vo vyraze nie je meno funkcie pouzite bez zatvoriek)
 static void check_expr_vars(ExprNode *node){
     if(node == NULL){
         return;
@@ -499,6 +538,7 @@ static void check_expr_vars(ExprNode *node){
     check_expr_vars(node->right);
 }
 
+// Spracuje hodnotu na pravej strane (vyraz, volanie funkcie alebo literal () typu Unit)
 static void parse_value(ExprNode **expr, AstCall **call, Datatype *type){
     *expr = NULL;
     *call = NULL;
@@ -523,6 +563,7 @@ static void parse_value(ExprNode **expr, AstCall **call, Datatype *type){
         check_expr_vars(*expr);
         *type = expr_type;
     }
+    // Ak precedencna analyza narazila na '(' hned za menom funkcie, ide o volanie funkcie
     else if(expr_err == ERROR_SYNT && start_type == TOKEN_IDENTIFIER && current_token.type == TOKEN_LPAREN &&
          lookup_func(current_symtable, start_name) != NULL && lookup_func(current_symtable, start_name)->is_function){
             *expr = NULL;
@@ -530,6 +571,7 @@ static void parse_value(ExprNode **expr, AstCall **call, Datatype *type){
             *type = (*call)->ret_type;
     }
 
+    // Ak precedencna analyza skoncila na prazdnych zatvorkach (), vytvorime literal typu Unit
     else if(expr_err == ERROR_SYNT && start_type == TOKEN_LPAREN && 
         (current_token.type == TOKEN_EOL || current_token.type == TOKEN_SEMICOLON || current_token.type == TOKEN_EOF)){
             *expr = create_leaf(NODE_LITERAL, TYPE_UNIT, "()");
@@ -544,6 +586,7 @@ static void parse_value(ExprNode **expr, AstCall **call, Datatype *type){
     free(start_name);
 }
 
+// Spracuje priradenie do existujucej premennej 
 static AstStmt *parser_assignment(char *name){
 
     char *var_name = copy_string(name);
@@ -566,6 +609,7 @@ static AstStmt *parser_assignment(char *name){
 
     end_statement();
    
+    // Kontrola modifikovatelnosti: do nemenneho 'val' ani parametra funkcie nemozno priradit 
     if(var_info != NULL && !var_info->is_mutable){
         fprintf(stderr, "semantic error: assignment to immutable variable '%s'\n", var_name);
         exit(7);
@@ -573,6 +617,7 @@ static AstStmt *parser_assignment(char *name){
 
     check_not_bool(expr_type);
 
+    // Kontrola typovej kompatibility priradovanej hodnoty s typom premennej 
     if(!is_compatible(var_data->typ, expr_type)){
         fprintf(stderr, "semantic error: type mismatch in assignemnt to variable '%s' (variable: %d, expression %d)\n", var_name, var_data->typ, expr_type);
         exit(6);
@@ -586,6 +631,7 @@ static AstStmt *parser_assignment(char *name){
 }
 
 
+// Spracuje prikaz zacinajuci identifikatorom (priradenie, volanie funkcie, vyraz)
 static AstStmt *parse_identifier_statement(void){
 
     char *id_name = copy_string(current_token.attribute);
@@ -595,6 +641,7 @@ static AstStmt *parse_identifier_statement(void){
 
     parse_value(&stmt->expr, &stmt->call, &expr_type);
 
+    // Ak bol nacitany samotny identifikator premennej nasledovany '=', zmenime prikaz na priradenie
     if(current_token.type == TOKEN_ASSIGN && stmt->expr != NULL && stmt->expr->nodetype == NODE_VAR){
 
         expr_free(stmt->expr);
@@ -611,6 +658,7 @@ static AstStmt *parse_identifier_statement(void){
     return stmt;
 }
 
+// Spracuje deklaraciu premennej (val / var) s volitelnym typom a inicializacnou hodnotou
 static AstStmt *parse_var_declaration(void){
 
     bool is_mutable = false;
@@ -657,6 +705,7 @@ static AstStmt *parse_var_declaration(void){
         exit(6);
     }
 
+    // Ak typ nebol explicitne uvedeny, odvodi sa z typu vyrazu na pravej strane
     Datatype final_type = has_type ? var_type : expr_type;
     
     if(!insert_var(current_symtable, var_name, final_type, current_scope_level)){
@@ -673,6 +722,7 @@ static AstStmt *parse_var_declaration(void){
     return stmt;
 }
 
+// Spracuje odsadeny blok prikazov (INDENT po DEDENT) v novom vnorenom scope
 static AstStmt *parse_block(void){
     expect(TOKEN_EOL);
 
@@ -690,6 +740,7 @@ static AstStmt *parse_block(void){
 
 }
 
+// Spracuje prikaz if-then-else (vratane kontroly zarovnania else s if)
 static AstStmt *parse_if(void){
 
     int if_indent = current_token.indent;
@@ -700,6 +751,7 @@ static AstStmt *parse_if(void){
     AstStmt *stmt = new_stmt(AST_IF);
     Datatype expr_type = TYPE_ANY;
     
+    // Podmienka if sa spracuje precedencnou analyzou a musi mat vysledny typ Boolean 
     int expr_err = parse_expression(&current_token, &stmt->expr, &expr_type, current_symtable, current_scope_level);
     
     if(expr_err != 0){
@@ -716,6 +768,7 @@ static AstStmt *parse_if(void){
 
     stmt->then_block = parse_block();
 
+    // Vetva else musi mat rovnake odsadenie ako prislusny if
     if(current_token.type == TOKEN_KW_ELSE){
         if(current_token.indent != if_indent){
             syntax_error();
@@ -730,6 +783,7 @@ static AstStmt *parse_if(void){
 }
 
 
+// Spracuje cyklus while-do s pravdivostnou podmienkou a odsadenym telom
 static AstStmt *parse_while(void){
     expect(TOKEN_KW_WHILE);
 
@@ -742,7 +796,7 @@ static AstStmt *parse_while(void){
     check_expr_vars(stmt->expr);
 
     if(expr_type != TYPE_BOOL){
-        fprintf(stderr, "sematic error: condition of while is not boolean\n");
+        fprintf(stderr, "semantic error: condition of while is not boolean\n");
         exit(6);
     }
     expect(TOKEN_KW_DO);
@@ -753,6 +807,7 @@ static AstStmt *parse_while(void){
 }
 
 
+// Spracuje prikaz return a overi zhodu s navratovym typom aktualnej funkcie
 static AstStmt *parse_return(void){
     expect(TOKEN_KW_RETURN);
 
@@ -769,6 +824,7 @@ static AstStmt *parse_return(void){
     end_statement();
 
     if(!has_value){
+        // Samostatny return bez hodnoty je povoleny iba vo funkcii s typom Unit 
         if(!current_func_explicit || current_func_ret_type != TYPE_UNIT){
             fprintf(stderr, "semantic error: return without value is not allowed here\n");
             exit(10);
@@ -776,7 +832,7 @@ static AstStmt *parse_return(void){
     }
     else{
         if(!current_func_explicit){
-            fprintf(stderr, "semantic error: function with return need explicit retrun type\n");
+            fprintf(stderr, "semantic error: function with return need explicit return type\n");
             exit(6);
         }
         check_not_bool(expr_type);
@@ -791,6 +847,7 @@ static AstStmt *parse_return(void){
 }
 
 
+// Spracuje samostatny vyraz ako prikaz v bloku
 static AstStmt *parse_expression_statement(void){
     AstStmt *stmt = new_stmt(AST_EXPR);
     Datatype expr_type = TYPE_ANY;
@@ -803,6 +860,7 @@ static AstStmt *parse_expression_statement(void){
     return stmt;
 }
 
+// Spracuje postupnost prikazov v bloku a zretazi ich do zoznamu AstStmt
 static AstStmt *parser_statements(void){
 
     AstStmt *first = NULL;
@@ -860,6 +918,7 @@ static AstStmt *parser_statements(void){
             syntax_error();
             break;
         }
+        // Pripojenie spracovaneho prikazu na koniec zretazeneho zoznamu prikazov bloku
         if(stmt != NULL){
             if(first == NULL){
                 first = stmt;
@@ -876,6 +935,7 @@ static AstStmt *parser_statements(void){
     return first;
 }
 
+// Spracuje zoznam parametrov v hlavicke funkcie a ulozi ich do pola current_params
 static void parse_parameter_list(int is_main){
     
     expect(TOKEN_LPAREN);
@@ -917,18 +977,19 @@ static void parse_parameter_list(int is_main){
     
 
     if(is_main && current_param_count > 0){
-        fprintf(stderr, "semtantic error: msin function can not have parameters\n");
+        fprintf(stderr, "semtantic error: main function can not have parameters\n");
         exit(5);
     }
 }
 
+// Spracuje hlavicku funkcie (volitelna anotacia @main, def, meno, parametre a volitelny navratovy typ)
 static void parse_function_header(char **func_name, Datatype *return_type, bool *has_ret_type, int *is_main){
     *is_main = 0;
 
     if(current_token.type == TOKEN_AT){
         fetch_token();
         if(scanner_space_before_token()){
-            syntax_error();   // medzi @ a main nesmie byt ziadny znak
+            syntax_error();   // funkcia zo scanner.h: medzi @ a main nesmie byt medzera ani komentar
         }
 
         if(current_token.type == TOKEN_IDENTIFIER && strcmp(current_token.attribute, "main") == 0){
@@ -965,6 +1026,7 @@ static void parse_function_header(char **func_name, Datatype *return_type, bool 
     }
 }
 
+// Preskoci tokeny tela funkcie (pouziva sa v 1. prechode a pri hladani funkcie v subore)
 static void skip_function_body(void){
 
     expect(TOKEN_ASSIGN);
@@ -976,6 +1038,7 @@ static void skip_function_body(void){
             syntax_error();
         }
 
+        // Pocitame hlbku zanorenia blokov (INDENT/DEDENT), kym nepreskocime cele telo funkcie
         int depth = 0;
 
         do{
@@ -993,6 +1056,7 @@ static void skip_function_body(void){
         }while(depth > 0);
     }
     else{
+        // Jednoriadkove telo funkcie: preskocime vsetky tokeny az po koniec riadku
         while(current_token.type != TOKEN_EOL && current_token.type != TOKEN_EOF){
             fetch_token();
         }
@@ -1000,6 +1064,7 @@ static void skip_function_body(void){
     }
 }
 
+// Prvy prechod parsera: zozbiera hlavicky vsetkych funkcii a vlozi ich do tabulky symbolov
 static void collect_function_headers(void){
     while (current_token.type != TOKEN_EOF){
         if(current_token.type == TOKEN_AT || current_token.type == TOKEN_KW_DEF){
@@ -1011,6 +1076,7 @@ static void collect_function_headers(void){
 
             parse_function_header(&func_name, &return_type, &has_ret_type, &is_main);
 
+            // Program smie obsahovat najviac jednu funkciu @main, navratovy typ musi byt Unit
             if(is_main){
                 if(main_function_found){
                     fprintf(stderr, "semantic error: more than one @main function\n");
@@ -1059,6 +1125,7 @@ static void collect_function_headers(void){
     }
 }
 
+// Nastavi poziciu v subore na zaciatok idx-tej funkcie (pre 2. prechod parsera)
 static void seek_function(int idx){
 
     rewind_input();
@@ -1099,6 +1166,7 @@ static void seek_function(int idx){
     }
 }
 
+// Zisti vysledny typ bloku prikazov podla posledneho prikazu (0 = hodnota v *type, 1 = return, 2 = neplatna kombinacia)
 static int block_result(AstStmt *first, Datatype *type){
 
     AstStmt *last = first;
@@ -1128,10 +1196,12 @@ static int block_result(AstStmt *first, Datatype *type){
         int res_then = block_result(last->then_block, &type_then);
         int res_else = block_result(last->else_block, & type_else);
 
+
         if(res_then == 1 && res_else == 1){
             return 1;
         }
 
+        // Ak obe vetvy vracaju alebo maju vysledok typu Unit, vysledkom celeho if-else je Unit
         if((res_then==1 || (res_then == 0 && type_then == TYPE_UNIT))&& (res_else ==1 || (res_else == 0 && type_else == TYPE_UNIT))){
             *type = TYPE_UNIT;
             return 0;
@@ -1144,6 +1214,7 @@ static int block_result(AstStmt *first, Datatype *type){
     }
 }
 
+// Spracuje celu definiciu funkcie a vlozi ju do AST
 static void parse_function(void){
 
     char *func_name = NULL;
@@ -1179,9 +1250,10 @@ static void parse_function(void){
 
     current_scope_level++;
 
+    // Vlozenie parametrov do symtable (insert_var) a nastavenie aby sa nemenili
     for(int  i = 0; i < current_param_count; i++){
         if(!insert_var(current_symtable, current_params[i].name, current_params[i].type, current_scope_level)){
-            fprintf(stderr, "semantic error: parameter '%s' redefintion\n", current_params[i].name);
+            fprintf(stderr, "semantic error: parameter '%s' redefinition\n", current_params[i].name);
             exit(4);
         }
 
@@ -1194,6 +1266,7 @@ static void parse_function(void){
 
     AstStmt *body = NULL;
 
+    // Telo funkcie moze byt viacriadkovy odsadeny blok (po EOL a INDENT) alebo jednoriadkovy vyraz za '='
     if(current_token.type == TOKEN_EOL){
         fetch_token();
 
@@ -1217,6 +1290,7 @@ static void parse_function(void){
         leave_scope();
     }
 
+    // Kontrola navratovej hodnoty tela funkcie (alebo odvodenie navratoveho typu)
     Datatype body_type = TYPE_UNIT;
     int body_kind = block_result(body, &body_type);
 
@@ -1229,8 +1303,9 @@ static void parse_function(void){
         }
     }
     else{
+        // Odvodenie navratoveho typu funkcie z posledneho vyrazu v tele
         if(body_kind != 0){
-            fprintf(stderr, "semnatic error: can not ifer return type of function '%s'\n", func_name);
+            fprintf(stderr, "semantic error: can not return type of function '%s'\n", func_name);
             exit(6);
         }
         check_not_bool(body_type);
@@ -1238,10 +1313,11 @@ static void parse_function(void){
     }
 
     if(is_main && return_type != TYPE_UNIT){
-        fprintf(stderr, "semantic error: main function must retunrn UNIT\n");
+        fprintf(stderr, "semantic error: main function must return UNIT\n");
         exit(6);
     }
 
+    // Zapis konecneho (aj odvodeneho) navratoveho typu funkcie do tabulky symbolov
     Symboldata *func_data = lookup_func(current_symtable, func_name);
     if(func_data != NULL){
         func_data->typ = return_type;
@@ -1260,8 +1336,10 @@ static void parse_function(void){
    
 }
 
+// Riadi parsovanie idx-tej funkcie s podporou odkladu cez setjmp/longjmp pri neznamom navratovom type volanej funkcie
 static void process_function(int idx){
 
+    // state: 0 = nespracovana, 1 = prave sa spracovava, 2 = hotova
     if(funcs[idx].state == 2){
         return;
     }
@@ -1275,6 +1353,7 @@ static void process_function(int idx){
             break;
         }
 
+        
         while(current_scope_level > 0){
             leave_scope();
         }
@@ -1284,6 +1363,7 @@ static void process_function(int idx){
     parsing_idx = -1;
 }
 
+// Hlavna funkcia parsera: inicializuje tabulky, spusti 1. aj 2. prechod a cez DFS nad call_edges (limit 4096) overi nepritomnost rekurzie bez typu
 int parser_program(void){
 
     current_symtable = init_hash_table();
@@ -1296,25 +1376,28 @@ int parser_program(void){
         exit(99);
     }
     
+    // Vlozenie vstavanych funkcii 
     insert_included_fun(current_symtable);
 
     prepare_input();
     fetch_token();  
     parse_prolog();
 
+    // 1. prechod: zozbieranie hlaviciek vsetkych funkcii (umoznuje dopredne volania)
     collect_function_headers();
 
 
     if(!main_function_found){
-        fprintf(stderr, "sematic error: program is missing @main function\n");
+        fprintf(stderr, "semantic error: program is missing @main function\n");
         exit(3);
     }
 
+    // 2. prechod: parsovanie tiel funkcii a budovanie AST
     for(int i = 0; i < func_count; i++){
         process_function(i);
     }
 
-    // funkcia bez explicitneho navratoveho typu nesmie byt sucastou rekurzie (ani nepriamej)
+    // DFS hladanie cyklu v grafe volani: funkcia s odvodenym navratovym typom nesmie byt sucastou rekurzie
     for(int i = 0; i < func_count; i++){
         if(!funcs[i].inferred){
             continue;
@@ -1345,10 +1428,12 @@ int parser_program(void){
     return 0;
 }
 
+// Vrati ukazovatel na vybudovany AST strom celeho programu
 AstProgram *parser_get_program(void){
     return ast_program;
 }
 
+// Rekurzivne uvolni zretazeny zoznam prikazov AstStmt vratane vyrazov, volani a podblokov
 static void free_stmt_list(AstStmt *s) {
     while (s != NULL) {
         AstStmt *next = s->next;
@@ -1371,6 +1456,7 @@ static void free_stmt_list(AstStmt *s) {
     }
 }
 
+// Uvolni celu dynamicku pamat alokovanu parserom (AST strom, tabulka symbolov, pomocne polia)
 void parser_cleanup(void) {
     // 1. Uvolnenie AST stromu celého programu (funkcie, parametre, tela)
     if (ast_program != NULL) {
