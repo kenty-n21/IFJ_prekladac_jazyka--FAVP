@@ -8,12 +8,12 @@
 #include <stdbool.h>
 #include "symtable.h"
 
-//Prompt : "Aké typy dát je vhodné definovať pre precedenčnú analýzu"
+//Prompt : "Ake typy dat je vhodne definovat pre precedencnu analyzu"
 
-//Symboly, s ktorými pracuje precedenčná tabuľka
+//symboly, s ktorymi pracuje precedencna tabulka
 typedef enum{
     SYM_PLUS,       // +
-    SYM_UNARY_MIN,  // - (ako znamienko nie operacia)
+    SYM_UNARY_MIN,  // -    (unarne minus ako znamienko nie operacia)
     SYM_MINUS,      // -
     SYM_MUL,        // *
     SYM_DIV,        // /
@@ -27,52 +27,52 @@ typedef enum{
     SYM_RPAR,       // )
     SYM_ID,         // id
     SYM_DOLLAR,     // $
-    SYM_NONTERM,
-    SYM_STOP
+    SYM_NONTERM,    // zredukovany vyraz
+    SYM_STOP        // zarazka na redukciu
 }PrecSymbol;
 
-
+//struktura pre data ulozena v jednom prvku
 typedef struct TSData{
     Datatype type;
     PrecSymbol symbol;
-    struct ExprNode *node;
+    struct ExprNode *node;          //podstrom pre dany symbol
 }TSData;
 
-//štrúktúra prvku v zásobníku
+//struktura prvku v zasobniku
 typedef struct TSElem{
     TSData data;
     struct TSElem *next;
 }TSElem;
 
-//štruktúra zásobníku
+//struktura zasobniku
 typedef struct tstack{
     TSElem *top;
 }TStack;
 
 
 
-//inicializáacia zásobníka
+//inicializacia zasobnika
 void init_stack(TStack *s);
 
-//alokuj miesto v pamäti pre nový element, v prípade úspešnej alokácie vlož prvok na vrch zásobníka
+//alokuje miesto v pamati pre novy element, v pripade uspesnej alokacie vloz prvok na vrch zasobnika
 bool push_stack(TStack *s, TSData data);
 
-//vlož zarážku nad najvyšší terminál
+//vlozi zarazku nad najvyssi terminal
 bool insert_terminal_stop_stack(TStack *s);
 
-//zruší prvok na vrchu zásobníka
+//zrusi prvok na vrchu zasobnika
 void pop_stack(TStack *s);
 
-//získaj najvyššie uložený terminál
+//ziska najvyssie ulozeny terminal
 TSElem* get_topterminal_stack(TStack *s);
 
-//vráti ukazovateľ na vrchný prvok zásobníka
+//vrati ukazatel na vrchny prvok zasobnika
 TSElem* top_stack(TStack *s);
 
-//zistí či je zásobník prázdny
+//zisti ci je zasobnik prazdny
 bool is_empty_stack(TStack *s);
 
-//uvoľni celý zásobník
+//uvolni cely zasobnik
 void free_stack(TStack *s);
 
 

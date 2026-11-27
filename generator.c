@@ -1,7 +1,7 @@
 /*
  * Projekt: Implementacia prekladaca imperativneho jazyka IFJ26
  * Subor: generator.c
- * Autor: Veronika Kentosova (xkentov00) a Filip Simulcik(xsimulf00)
+ * Autor: Veronika Kentosova (xkentov00) a Filip Simulcik (xsimulf00)
  */
 #include "generator.h"
 #include "error.h"

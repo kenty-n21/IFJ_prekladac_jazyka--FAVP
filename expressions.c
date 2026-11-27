@@ -3,11 +3,15 @@
  * Subor: expressions.c
  * Autor:  Veronika Kentosova (xkentov00)
  */
+
+//Precedencna syntakticka analyza - zdola nahor 
 #include <string.h>
 #include "stack.h"
 #include "error.h"
 #include "symtable.h"
 #include "expressions.h"
+
+
  //inspo: https://www.geeksforgeeks.org/compiler-design/role-of-operator-precedence-parser/
  //inspo: https://compilerdesigndetails.blogspot.com/2012/02/operator-precedence-parsing.html
  //inspo: https://www.slideserve.com/maeko/bottom-up-parsing
@@ -17,12 +21,14 @@
 #define E PREC_EQUAL   // = 
 #define X PREC_ERROR   // 
 
-#define PREC_TABLE_SIZE (SYM_DOLLAR + 1)
-
-extern symtable *current_symtable;  
+#define PREC_TABLE_SIZE (SYM_DOLLAR + 1)     //rozmery tabulky
 
 
-//Precedencna tabuulka vyrazov
+/**
+ * Precedencna tabulka vyrazov
+ * riadky su najvyssie terminaly na zasobniku
+ * stlpce predstavuju terminal na vstupe
+ */
 static const PrecAction prec_table[PREC_TABLE_SIZE][PREC_TABLE_SIZE] = {
     //               + u-  -  *  /  <  > <= >= == !=  (  )  id $
     /* + */         {R, S, R, S, S, R, R, R, R, R, R, S, R, S, R},
@@ -42,7 +48,7 @@ static const PrecAction prec_table[PREC_TABLE_SIZE][PREC_TABLE_SIZE] = {
     /* $  */        {S, S, S, S, S, S, S, S, S, S ,S, S, X, S, X}
 };
 
-
+//prevdza token na symbol jemu korespondujuci
 static PrecSymbol token_to_symbol(Token *token){
    switch (token->type){
       case TOKEN_PLUS:
@@ -80,7 +86,7 @@ static PrecSymbol token_to_symbol(Token *token){
 }
 
 
-//funkcia na overenie ci je symbol operator
+//funkcia ktora overi ci je symbol binarny operator
 static bool is_binary_op(PrecSymbol symbol){
    switch(symbol) {
       case SYM_PLUS:
@@ -98,7 +104,7 @@ static bool is_binary_op(PrecSymbol symbol){
    }
 }
 
-//funkcia kontoluje sematiku datovych tzpov a vracia vysledny typ vyrazu
+//funkcia kontoluje sematiku datovych typov a vracia vysledny typ vyrazu
 static int semantic_check(PrecSymbol op, Datatype left, Datatype right,Datatype* result){
    bool num_left = (left == TYPE_DOUBLE || left == TYPE_INT);
    bool num_right = (right == TYPE_DOUBLE || right == TYPE_INT);
@@ -115,8 +121,8 @@ static int semantic_check(PrecSymbol op, Datatype left, Datatype right,Datatype*
    case SYM_MINUS:
    case SYM_MUL:
    case SYM_DIV:
-      if(num_left && num_right){
-         if(left==TYPE_DOUBLE || right == TYPE_DOUBLE){
+      if(num_left && num_right){          //musi overit ze oba operandy su cisla
+         if(left==TYPE_DOUBLE || right == TYPE_DOUBLE){        //konverzia datovych typov,v pripade ze je jeden double
             *result = TYPE_DOUBLE;
             return NO_ERROR;
          }else{
@@ -130,7 +136,7 @@ static int semantic_check(PrecSymbol op, Datatype left, Datatype right,Datatype*
    case SYM_GT:
    case SYM_LTE:
    case SYM_GTE:
-      if((num_left && num_right) || (left == TYPE_STRING && right == TYPE_STRING)){
+      if((num_left && num_right) || (left == TYPE_STRING && right == TYPE_STRING)){  //bud dvojica cisel alebo retazcov
          *result = TYPE_BOOL;
          return NO_ERROR;
       }
@@ -138,7 +144,7 @@ static int semantic_check(PrecSymbol op, Datatype left, Datatype right,Datatype*
 
    case SYM_EQ:
    case SYM_NEQ:
-      if((left == right) || (num_left && num_right) ){
+      if((left == right) || (num_left && num_right) ){   //musia sa zhodovat typy alebo musia byt obe cisla
          *result = TYPE_BOOL;
          return NO_ERROR;
       }
@@ -148,9 +154,14 @@ static int semantic_check(PrecSymbol op, Datatype left, Datatype right,Datatype*
    }
 }
 
+
 //pomocne funkcie pre AST
 
-//vytvori uzol pre literal alebo premennu
+/**
+ * funkcia vytvori uzol pre literal alebo premennu
+ * alokuje uzol, nastavi SYM_ID, hodnotu a datovy typ
+ * detu uzla nastavime na NULL  
+ */
 ExprNode* create_leaf(NodeType nodetype, Datatype datatype, const char *value){
    ExprNode *NewNode = (ExprNode*) malloc(sizeof(struct ExprNode));
    if(NewNode == NULL){
@@ -168,7 +179,10 @@ ExprNode* create_leaf(NodeType nodetype, Datatype datatype, const char *value){
    return NewNode;
 }
 
-//vytvori uzol pre unarny operator 
+/**
+ * funkcia vytvori uzol pre unarny symbol
+ * alokuje uzol, nastavi symbol a datovy typ
+ */
 ExprNode* create_unary(PrecSymbol symbol, ExprNode *child, Datatype datatype){
    ExprNode *NewNode = (ExprNode*)malloc(sizeof(struct ExprNode));
    if(NewNode == NULL){
@@ -183,7 +197,11 @@ ExprNode* create_unary(PrecSymbol symbol, ExprNode *child, Datatype datatype){
    return NewNode;
 }
 
-//vytvori uzol pre binarny operator 
+/**
+ * funkcia vytvori uzol pre binarny operator
+ * alokuje uzol, nastavi symbol a datovy typ
+ * zaroven prida laveho a praveho potomka
+ */
 ExprNode* create_binary(PrecSymbol symbol, ExprNode *left, ExprNode *right, Datatype datatype){
    ExprNode *NewNode = (ExprNode*)malloc(sizeof(struct ExprNode));
    if(NewNode == NULL){
@@ -197,7 +215,12 @@ ExprNode* create_binary(PrecSymbol symbol, ExprNode *left, ExprNode *right, Data
    NewNode->value[0] = '\0';
    return NewNode;
 }
-//vytvori uzol pre pristup k clenu
+
+/**
+ * funkcia vytvori uzol pre rozsirenie VALMEM
+ * alokuje uzol, nastavi symbol, hodnotu a datovy typ
+ * ma iba jedneho potomka
+ */
 ExprNode* create_member(ExprNode *child, Datatype datatype, const char *member_name){
    ExprNode *NewNode = (ExprNode*)malloc(sizeof(struct ExprNode));
    if(NewNode == NULL){
@@ -214,7 +237,7 @@ ExprNode* create_member(ExprNode *child, Datatype datatype, const char *member_n
    return NewNode;
 }
 
-//uvolni podstrom
+//funkcia, ktora rekurzivne (post-order) uvolni strom
 void expr_free(ExprNode *node){
    if(node == NULL)
       return;
@@ -227,6 +250,8 @@ void expr_free(ExprNode *node){
 
 //spracovavanie bezeparametrickych vstavanych funkcii pre rozsirenie VALMEM
 static int process_member_access(Token *current_token, ExprNode **node, Datatype *datatype){
+   //ak na clena navazuje bodka a za nim dalsi clen prebehne cyklus
+   //"nabalujeme"
    while (current_token->type == TOKEN_DOT){
       *current_token = get_next_token();
       //kontrola
@@ -240,7 +265,9 @@ static int process_member_access(Token *current_token, ExprNode **node, Datatype
       char member[128];
       strncpy(member, current_token->attribute, sizeof(member) - 1);
       member[sizeof(member) - 1] = '\0';
+
       Datatype result;
+      //podla nazvu clena sa nastavi vysledny typ
       if(strcmp(member,"toString") == 0){
          result = TYPE_STRING;
 
@@ -274,6 +301,7 @@ static int process_member_access(Token *current_token, ExprNode **node, Datatype
       if(current_token->type == TOKEN_LPAREN)
          return ERROR_SYNT;
       
+      //obali uz existujuci uzol a aktualizuje ho 
       ExprNode *new_node = create_member(*node, result, member);
       if (new_node == NULL) 
          return ERROR_INTERNAL;
@@ -286,7 +314,7 @@ static int process_member_access(Token *current_token, ExprNode **node, Datatype
 
 
 
-//redukcna funkcia podla definovanzch pravidiel
+//redukcna funkcia podla definovanych pravidiel
 int reduce(TStack *stack){
    TSElem *Current = stack->top;
    TSData arr[3];
@@ -294,7 +322,7 @@ int reduce(TStack *stack){
    int count = 0;
 
    //vyuzivame cyklus aby sme zistili kolko prvkov je pred SYM_STOP
-   //podla toho budeme kontrolovat ktore pravidlo pouzitw
+   //podla toho budeme kontrolovat ktore pravidlo pouzit
    while(Current != NULL && Current->data.symbol != SYM_STOP){
       count+=1;
       Current = Current->next;
@@ -304,6 +332,7 @@ int reduce(TStack *stack){
    if(Current == NULL || count == 0 || count > 3)
       return(ERROR_SYNT);
 
+   //vybratie prvkov do pola
    for(int i = 0; i < count ; i++){
       arr[i]= top_stack(stack)->data;
       pop_stack(stack);
@@ -393,9 +422,14 @@ int reduce(TStack *stack){
 }
 
 
-//hlavna funkcia precedencnej analyzy vyrazov - funkcia parse expression
+/**
+ * hlavna funkcia precedencnej analyzy
+ * spracuje vyraz od aktualneho tokenu
+ * po navrate je aktualny token prvy, ktory uz k vyrazu nepatri
+ * vrati 0 alebo chybovy kod
+ */
 int parse_expression(Token *current_token, ExprNode **root, Datatype *type, symtable *symtable, int scope_level){
-   //inicializacia zadobnika
+   //inicializacia zasobnika
    TStack stack;
    init_stack(&stack);
 
@@ -437,6 +471,7 @@ int parse_expression(Token *current_token, ExprNode **root, Datatype *type, symt
          }
       }
 
+      //vyhladanie akcie podla precedencnej tabulky 
       PrecAction action = prec_table[top_terminal][input_symbol];
       TSData data;
 
@@ -444,7 +479,7 @@ int parse_expression(Token *current_token, ExprNode **root, Datatype *type, symt
       {
       // <
       case PREC_SHIFT:
-         //podla floydovej analyzy vlozime zarazku
+         //vlozime zarazku
          insert_terminal_stop_stack(&stack);
 
          data.symbol = input_symbol;
@@ -474,7 +509,7 @@ int parse_expression(Token *current_token, ExprNode **root, Datatype *type, symt
                
             case TOKEN_IDENTIFIER:{
                //zistenie typu premennej, ak nema definovany alebo je nedeklarovany vrati error
-               //ak v tabulke symbolov najde typ premennej tak ho definuje
+               //ak v tabulke symbolov najde typ premennej tak ho prevezme
                Datatype var_type = TYPE_ANY;
                if (symtable != NULL){
                   Symboldata *var = lookup_var(scope_level,current_token->attribute, symtable);

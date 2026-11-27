@@ -3,18 +3,18 @@
  * Subor: stack.c
  * Autor: Veronika Kentosova(xkentov00)
  */
-#include <stdio.h>      // pre mozne chybove hlasnia
-#include <stdbool.h>    // True a False
+#include <stdio.h>      
+#include <stdbool.h>    
 #include "stack.h"
 #include "symtable.h"
 #include "expressions.h"
 
-//inicializácia zásobníka
+//inicializacia zasobnika
 void init_stack(TStack *s){
     s->top = NULL;
 }
 
-//alokuj miesto v pamäti pre nový element, v prípade úspešnej alokácie vlož prvok na vrch zásobníka
+//alokuje miesto v pamati pre novy element v pripade uspesnej alokacie vloz prvok na vrch zasobnika
 bool push_stack(TStack *s, TSData data){
     TSElem* NewElemPtr = (TSElem *)malloc(sizeof(struct TSElem));
     if (NewElemPtr == NULL)
@@ -25,7 +25,7 @@ bool push_stack(TStack *s, TSData data){
     return true;
 }
 
-//vlož zarážku nad najvyšší terminál
+//vlozi zarazku nad najvyssi terminal
 bool insert_terminal_stop_stack(TStack *s){
     TSElem* NewElemPtr = (TSElem *)malloc(sizeof(struct TSElem));
     if (NewElemPtr == NULL)
@@ -55,7 +55,7 @@ bool insert_terminal_stop_stack(TStack *s){
     return true;
 }
 
-//zruší prvok na vrchu zásobníka
+//zrusi prvok na vrchu zasobnika
 void pop_stack(TStack *s){
     TSElem *ElemPtr;
     if(s->top != NULL){
@@ -65,7 +65,8 @@ void pop_stack(TStack *s){
     }
 }
 
-//získaj najvyššie uložený terminál
+
+//ziska najvyssie ulozeny terminal
 TSElem* get_topterminal_stack(TStack *s){
     TSElem *CurrentElem;
     CurrentElem = s->top;
@@ -75,7 +76,7 @@ TSElem* get_topterminal_stack(TStack *s){
     return CurrentElem;
 }
 
-//vráti ukazovateľ na vrchný prvok zásobníka
+//vrati ukazovatel na vrchny prvok zasobnika
 TSElem* top_stack(TStack *s){
     if(is_empty_stack(s) == true){
         fprintf(stderr,"Zásobník je prázdny ! \n");
@@ -84,12 +85,12 @@ TSElem* top_stack(TStack *s){
     return (s->top);
 }
 
-//zistí či je zásobník prázdny
+//zisti ci je zasobnik prazdny
 bool is_empty_stack(TStack *s){
     return (s->top == NULL);
 }
 
-//uvoľni celý zásobník
+//uvolni cely zasobnik
 void free_stack(TStack *s){
     while(!is_empty_stack(s)){
         if(s->top->data.node != NULL){

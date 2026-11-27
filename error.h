@@ -8,6 +8,7 @@
 
 //inspo: https://softwareengineering.stackexchange.com/questions/445703/standard-error-codes-vs-custom-error-codes-in-c
 
+//vycet pre jednotlive errorove navratove kody
 typedef enum{
     NO_ERROR = 0,
     ERROR_LEX = 1,
